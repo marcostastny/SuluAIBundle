@@ -5,6 +5,7 @@ services:
 
     Marcostastny\SuluAIBundle\Service\ContentTextFlattener: ~
     Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator: ~
+    Marcostastny\SuluAIBundle\Service\PageContentExtractor: ~
 
     Marcostastny\SuluAIBundle\Admin\AiSettingAdmin:
         arguments:
@@ -22,3 +23,9 @@ services:
         public: true
         tags:
             - { name: sulu.context, context: admin }
+
+    Marcostastny\SuluAIBundle\Controller\Admin\MetaGenerationController:
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }

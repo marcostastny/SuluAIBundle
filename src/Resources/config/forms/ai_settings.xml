@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<form xmlns="http://schemas.sulu.io/template/template"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://schemas.sulu.io/template/template http://schemas.sulu.io/template/form-1.0.xsd"
+>
+    <key>ai_settings</key>
+    <properties>
+        <property name="enabled" type="checkbox">
+            <meta>
+                <title>sulu_ai.enabled</title>
+            </meta>
+            <params>
+                <param name="type" value="toggler"/>
+            </params>
+        </property>
+        <property name="apiUrl" type="text_line" colspan="6">
+            <meta>
+                <title>sulu_ai.api_url</title>
+                <info_text>sulu_ai.api_url_info</info_text>
+            </meta>
+        </property>
+        <property name="model" type="text_line" colspan="6">
+            <meta>
+                <title>sulu_ai.model</title>
+                <info_text>sulu_ai.model_info</info_text>
+            </meta>
+        </property>
+        <property name="apiKey" type="text_line" colspan="12">
+            <meta>
+                <title>sulu_ai.api_key</title>
+            </meta>
+        </property>
+    </properties>
+</form>

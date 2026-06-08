@@ -1,0 +1,12 @@
+{
+    "sulu_ai.settings": "AI Settings",
+    "sulu_ai.enabled": "Enabled",
+    "sulu_ai.api_url": "API URL",
+    "sulu_ai.api_url_info": "Base URL of the OpenAI-compatible API, e.g. https://api.openai.com/v1",
+    "sulu_ai.api_key": "API Key",
+    "sulu_ai.model": "Model",
+    "sulu_ai.model_info": "Model name, e.g. gpt-4o-mini",
+    "sulu_ai.generate_meta": "Generate meta with AI",
+    "sulu_ai.generate_meta_save_first": "Save the page before generating meta information.",
+    "sulu_ai.generate_meta_error": "Meta generation failed. Check the AI settings and try again."
+}

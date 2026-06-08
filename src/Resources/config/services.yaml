@@ -2,3 +2,23 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+
+    Marcostastny\SuluAIBundle\Service\ContentTextFlattener: ~
+    Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator: ~
+
+    Marcostastny\SuluAIBundle\Admin\AiSettingAdmin:
+        arguments:
+            $viewBuilderFactory: '@sulu_admin.view_builder_factory'
+            $securityChecker: '@sulu_security.security_checker'
+        tags:
+            - { name: sulu.admin }
+            - { name: sulu.context, context: admin }
+
+    Marcostastny\SuluAIBundle\Controller\Admin\AiSettingController:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $viewHandler: '@fos_rest.view_handler.default'
+            $tokenStorage: '@security.token_storage'
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }

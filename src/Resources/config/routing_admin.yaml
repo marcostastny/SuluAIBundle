@@ -1,0 +1,20 @@
+sulu_ai.get_ai-settings:
+    path: /ai-settings/{id}.{_format}
+    methods: GET
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\AiSettingController::getAction
+    defaults: { _format: json }
+    requirements: { _format: json }
+
+sulu_ai.put_ai-settings:
+    path: /ai-settings/{id}.{_format}
+    methods: PUT
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\AiSettingController::putAction
+    defaults: { _format: json }
+    requirements: { _format: json }
+
+sulu_ai.post_generate-meta:
+    path: /ai/generate-meta.{_format}
+    methods: POST
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\MetaGenerationController::postAction
+    defaults: { _format: json }
+    requirements: { _format: json }

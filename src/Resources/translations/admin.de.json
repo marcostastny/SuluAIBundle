@@ -1,0 +1,12 @@
+{
+    "sulu_ai.settings": "KI-Einstellungen",
+    "sulu_ai.enabled": "Aktiviert",
+    "sulu_ai.api_url": "API-URL",
+    "sulu_ai.api_url_info": "Basis-URL der OpenAI-kompatiblen API, z. B. https://api.openai.com/v1",
+    "sulu_ai.api_key": "API-Schlüssel",
+    "sulu_ai.model": "Modell",
+    "sulu_ai.model_info": "Modellname, z. B. gpt-4o-mini",
+    "sulu_ai.generate_meta": "Meta mit KI generieren",
+    "sulu_ai.generate_meta_save_first": "Bitte die Seite speichern, bevor Meta-Informationen generiert werden.",
+    "sulu_ai.generate_meta_error": "Meta-Generierung fehlgeschlagen. Bitte KI-Einstellungen prüfen und erneut versuchen."
+}

@@ -1,0 +1,10 @@
+{
+    "name": "sulu-ai-bundle",
+    "license": "MIT",
+    "peerDependencies": {
+        "mobx": "^4.0.0",
+        "react": "^17.0.0",
+        "sulu-admin-bundle": "*",
+        "sulu-page-bundle": "*"
+    }
+}

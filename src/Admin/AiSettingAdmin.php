@@ -18,6 +18,7 @@ class AiSettingAdmin extends Admin
 {
     public const TAB_VIEW = 'sulu_ai.settings';
     public const FORM_VIEW = 'sulu_ai.settings.form';
+    public const PAGE_SEO_VIEW = 'sulu_page.page_edit_form.seo';
 
     public function __construct(
         private ViewBuilderFactoryInterface $viewBuilderFactory,
@@ -51,6 +52,26 @@ class AiSettingAdmin extends Admin
                     ->addToolbarActions([new ToolbarAction('sulu_admin.save')])
                     ->setParent(static::TAB_VIEW)
             );
+        }
+
+        $this->appendGenerateMetaToolbarAction($viewCollection);
+    }
+
+    private function appendGenerateMetaToolbarAction(ViewCollection $viewCollection): void
+    {
+        if (!$this->securityChecker->hasPermission(AiSetting::SECURITY_CONTEXT, PermissionTypes::EDIT)) {
+            return;
+        }
+
+        try {
+            $seoView = $viewCollection->get(static::PAGE_SEO_VIEW);
+            $seoView->setOption('toolbarActions', [
+                ...($seoView->getView()->getOption('toolbarActions') ?? []),
+                new ToolbarAction('sulu_ai.generate_meta'),
+            ]);
+            $viewCollection->add($seoView);
+        } catch (\Exception) {
+            // Page bundle / SEO view not available — nothing to do.
         }
     }
 

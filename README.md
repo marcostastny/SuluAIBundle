@@ -55,9 +55,17 @@ cd assets/admin && npm install && npm run build
 
 ## Permissions
 
-The bundle registers the `sulu_ai.settings` security context. Grant your role
-**View** + **Edit** for it under *Settings → Roles*; the settings page and the
-generate-meta button require **Edit**.
+The bundle registers two security contexts under *Settings → Roles*, so you can
+let content editors generate meta without giving them access to the API key:
+
+| Section | Context | Grants |
+|---|---|---|
+| **AI Settings** | `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
+| **AI Meta Generation** | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
+
+Grant the relevant permissions to each role under *Settings → Roles*. The
+generate-meta button only appears for users who have **View** on
+*AI Meta Generation*, and the endpoint enforces the same permission.
 
 ## Usage
 

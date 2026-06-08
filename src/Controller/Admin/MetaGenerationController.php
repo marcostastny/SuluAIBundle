@@ -27,7 +27,7 @@ class MetaGenerationController
 
     public function postAction(Request $request): Response
     {
-        $this->securityChecker->checkPermission(AiSetting::SECURITY_CONTEXT, PermissionTypes::EDIT);
+        $this->securityChecker->checkPermission(AiSetting::SECURITY_CONTEXT_GENERATION, PermissionTypes::VIEW);
 
         $data = $request->request->all();
         $id = (string) ($data['id'] ?? '');

@@ -59,7 +59,7 @@ class AiSettingAdmin extends Admin
 
     private function appendGenerateMetaToolbarAction(ViewCollection $viewCollection): void
     {
-        if (!$this->securityChecker->hasPermission(AiSetting::SECURITY_CONTEXT, PermissionTypes::EDIT)) {
+        if (!$this->securityChecker->hasPermission(AiSetting::SECURITY_CONTEXT_GENERATION, PermissionTypes::VIEW)) {
             return;
         }
 
@@ -82,10 +82,15 @@ class AiSettingAdmin extends Admin
     {
         return [
             self::SULU_ADMIN_SECURITY_SYSTEM => [
-                'Sulu AI' => [
+                'AI Settings' => [
                     AiSetting::SECURITY_CONTEXT => [
                         PermissionTypes::VIEW,
                         PermissionTypes::EDIT,
+                    ],
+                ],
+                'AI Meta Generation' => [
+                    AiSetting::SECURITY_CONTEXT_GENERATION => [
+                        PermissionTypes::VIEW,
                     ],
                 ],
             ],

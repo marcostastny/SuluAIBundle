@@ -19,6 +19,7 @@ class AiSetting implements AuditableInterface
     public const RESOURCE_KEY = 'ai_settings';
     public const FORM_KEY = 'ai_settings';
     public const SECURITY_CONTEXT = 'sulu_ai.settings';
+    public const SECURITY_CONTEXT_GENERATION = 'sulu_ai.meta_generation';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

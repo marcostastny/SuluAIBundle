@@ -33,7 +33,7 @@ class OpenAiMetaGenerator
                 'auth_bearer' => $apiKey,
                 'json' => [
                     'model' => $model,
-                    'temperature' => 0.4,
+                    'response_format' => ['type' => 'json_object'],
                     'messages' => [
                         ['role' => 'system', 'content' => $this->systemPrompt($locale)],
                         ['role' => 'user', 'content' => $this->userPrompt($title, $body)],
@@ -42,7 +42,15 @@ class OpenAiMetaGenerator
             ]
         );
 
+        $statusCode = $response->getStatusCode();
         $data = $response->toArray(false);
+
+        if ($statusCode >= 400) {
+            $message = $data['error']['message'] ?? \json_encode($data);
+
+            throw new \RuntimeException(\sprintf('API returned status %d: %s', $statusCode, $message));
+        }
+
         $content = $data['choices'][0]['message']['content'] ?? '';
 
         return $this->parseReply((string) $content);
@@ -56,7 +64,10 @@ class OpenAiMetaGenerator
         $start = \strpos($reply, '{');
         $end = \strrpos($reply, '}');
         if (false === $start || false === $end || $end < $start) {
-            throw new \RuntimeException('AI reply did not contain a JSON object.');
+            throw new \RuntimeException(\sprintf(
+                'AI reply did not contain a JSON object. Reply was: %s',
+                '' === \trim($reply) ? '(empty)' : \mb_substr($reply, 0, 200)
+            ));
         }
 
         $decoded = \json_decode(\substr($reply, $start, $end - $start + 1), true);

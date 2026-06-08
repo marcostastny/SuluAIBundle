@@ -28,6 +28,18 @@ class OpenAiMetaGeneratorTest extends TestCase
         $this->assertSame('a, b', $result['keywords']);
     }
 
+    public function testGenerateSurfacesApiError(): void
+    {
+        $body = json_encode(['error' => ['message' => "Unsupported value: 'temperature' does not support 0.4"]]);
+        $client = new MockHttpClient(new MockResponse((string) $body, ['http_code' => 400]));
+        $generator = new OpenAiMetaGenerator($client);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("temperature' does not support 0.4");
+
+        $generator->generate('https://api.test/v1', 'secret', 'gpt-5-mini', 'Title', 'Body', 'en');
+    }
+
     public function testParseReplyExtractsEmbeddedJson(): void
     {
         $generator = new OpenAiMetaGenerator(new MockHttpClient());

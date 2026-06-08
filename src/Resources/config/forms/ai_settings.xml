@@ -25,7 +25,7 @@
                 <info_text>sulu_ai.model_info</info_text>
             </meta>
         </property>
-        <property name="apiKey" type="text_line" colspan="12">
+        <property name="apiKey" type="password" colspan="12">
             <meta>
                 <title>sulu_ai.api_key</title>
             </meta>

@@ -8,6 +8,8 @@ AI-assisted SEO meta generation for [Sulu](https://sulu.io/) 3.
   saved page's content to the API and fills the meta title, description and
   keywords.
 
+![AI Settings page](docs/images/settings.png)
+
 ## Requirements
 
 * PHP >= 8.2
@@ -76,6 +78,8 @@ generate-meta button only appears for users who have **View** on
 3. Click **Generate meta with AI**. The title, description and keywords fields
    are filled from the page's content (in the current content language). Review
    and save.
+
+![Generate meta with AI on the page SEO tab](docs/images/product_seo_tab.png)
 
 The button is disabled until the page has been saved at least once (the backend
 reads the saved page content).

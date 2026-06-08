@@ -1,2 +1,3 @@
 /node_modules
 /src/Resources/js/node_modules
+/.phpunit.result.cache

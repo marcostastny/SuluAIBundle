@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Marcostastny\SuluAIBundle\Tests\Unit\Service;
+
+use Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
+
+class OpenAiMetaGeneratorTest extends TestCase
+{
+    public function testGenerateParsesChatCompletion(): void
+    {
+        $payload = [
+            'choices' => [
+                ['message' => ['content' => '{"title":"T","description":"D","keywords":"a, b"}']],
+            ],
+        ];
+        $client = new MockHttpClient(new MockResponse((string) json_encode($payload)));
+        $generator = new OpenAiMetaGenerator($client);
+
+        $result = $generator->generate('https://api.test/v1', 'secret', 'gpt-test', 'Title', 'Body', 'en');
+
+        $this->assertSame('T', $result['title']);
+        $this->assertSame('D', $result['description']);
+        $this->assertSame('a, b', $result['keywords']);
+    }
+
+    public function testParseReplyExtractsEmbeddedJson(): void
+    {
+        $generator = new OpenAiMetaGenerator(new MockHttpClient());
+        $result = $generator->parseReply('Sure: {"title":"X","description":"Y","keywords":"z"} done');
+        $this->assertSame('X', $result['title']);
+        $this->assertSame('Y', $result['description']);
+        $this->assertSame('z', $result['keywords']);
+    }
+
+    public function testParseReplyThrowsOnNonJson(): void
+    {
+        $generator = new OpenAiMetaGenerator(new MockHttpClient());
+        $this->expectException(\RuntimeException::class);
+        $generator->parseReply('no json at all');
+    }
+}

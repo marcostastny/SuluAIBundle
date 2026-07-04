@@ -43,8 +43,8 @@ class AssistantController
         $template = (string) ($context['template'] ?? '');
         $locale = (string) ($context['locale'] ?? '');
 
-        if ('' === $template || '' === $locale || [] === $messages) {
-            return new JsonResponse(['message' => 'Missing template, locale or messages.'], 400);
+        if ([] === $messages) {
+            return new JsonResponse(['message' => 'Missing messages.'], 400);
         }
 
         $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
@@ -52,10 +52,19 @@ class AssistantController
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 
-        try {
-            $built = $this->contextBuilder->build($template, $locale, $formData);
-        } catch (\RuntimeException $e) {
-            return new JsonResponse(['message' => $e->getMessage()], 400);
+        $hasPageContext = '' !== $template && '' !== $locale;
+        $validateOps = null;
+
+        if ($hasPageContext) {
+            try {
+                $built = $this->contextBuilder->build($template, $locale, $formData);
+            } catch (\RuntimeException $e) {
+                return new JsonResponse(['message' => $e->getMessage()], 400);
+            }
+            $systemPrompt = $built['systemPrompt'];
+            $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
+        } else {
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt();
         }
 
         $messages = \array_values(\array_filter(\array_map(
@@ -78,9 +87,9 @@ class AssistantController
                 (string) $setting->getApiUrl(),
                 (string) $setting->getApiKey(),
                 (string) $setting->getModel(),
-                $built['systemPrompt'],
+                $systemPrompt,
                 $messages,
-                fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData)
+                $validateOps
             );
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);

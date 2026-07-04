@@ -55,11 +55,56 @@ class AssistantControllerTest extends TestCase
         return new Request(content: (string) \json_encode($payload));
     }
 
-    public function testMissingParametersReturn400(): void
+    public function testMissingMessagesReturn400(): void
     {
         $response = $this->controller($this->enabledSetting())->postAction($this->jsonRequest([]));
 
         $this->assertSame(400, $response->getStatusCode());
+    }
+
+    public function testGlobalModeWithoutContextUsesGlobalPrompt(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->expects($this->never())->method('build');
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->expects($this->once())
+            ->method('run')
+            ->with(
+                'https://api.test/v1',
+                'key',
+                'gpt-test',
+                'global prompt',
+                [['role' => 'user', 'content' => 'find the reservation form']],
+                null
+            )
+            ->willReturn(['reply' => 'Searching…', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)->postAction($this->jsonRequest([
+            'messages' => [['role' => 'user', 'content' => 'find the reservation form']],
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(
+            ['reply' => 'Searching…', 'actions' => []],
+            \json_decode((string) $response->getContent(), true)
+        );
+    }
+
+    public function testPartialContextFallsBackToGlobalMode(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->expects($this->never())->method('build');
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturn(['reply' => 'ok', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)->postAction($this->jsonRequest([
+            'context' => ['type' => 'page', 'template' => 'default'],
+            'messages' => [['role' => 'user', 'content' => 'hi']],
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
     }
 
     public function testNotConfiguredReturns400(): void

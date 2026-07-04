@@ -1,0 +1,148 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.panel {
+    width: 520px;
+    max-width: calc(100vw - 32px);
+    margin: 48px 0;
+    padding: 24px;
+    border-radius: 4px;
+    background: #2a2f36;
+    color: #fff;
+}
+
+.title {
+    margin: 0 0 16px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.label {
+    display: block;
+    margin: 16px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hint {
+    margin: 4px 0 0;
+    color: #9aa4af;
+    font-size: 12px;
+}
+
+.textarea,
+.select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #3d444d;
+    border-radius: 4px;
+    background: #1f242a;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+.textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.summary {
+    margin: 8px 0 0;
+    color: #9aa4af;
+    font-size: 12px;
+}
+
+.modelRow,
+.countRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.countButton {
+    flex: 1;
+    min-width: 56px;
+    padding: 10px;
+    border: 1px solid #3d444d;
+    border-radius: 4px;
+    background: #1f242a;
+    color: #fff;
+    cursor: pointer;
+}
+
+.countButtonActive {
+    flex: 1;
+    min-width: 56px;
+    padding: 10px;
+    border: 1px solid #93c020;
+    border-radius: 4px;
+    background: #93c020;
+    color: #1f242a;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dropzone {
+    margin-top: 6px;
+    padding: 20px;
+    border: 1px dashed #3d444d;
+    border-radius: 4px;
+    text-align: center;
+    color: #9aa4af;
+}
+
+.dropzoneDisabled {
+    opacity: 0.5;
+}
+
+.generateButton {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: 0;
+    border-radius: 4px;
+    background: #6f8f1e;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.generateButton:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.results {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.resultCard img {
+    width: 100%;
+    border-radius: 4px;
+}
+
+.resultError {
+    grid-column: 1 / -1;
+    color: #f28b82;
+    font-size: 13px;
+}
+
+.closeButton {
+    float: right;
+    background: none;
+    border: 0;
+    color: #9aa4af;
+    cursor: pointer;
+}

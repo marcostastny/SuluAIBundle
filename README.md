@@ -64,6 +64,7 @@ let content editors generate meta without giving them access to the API key:
 |---|---|---|
 | **AI Settings** | `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
 | **AI Meta Generation** | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
+| **AI Assistant** | `sulu_ai.assistant` | **View** to show and use the assistant chat on page edit forms |
 
 Grant the relevant permissions to each role under *Settings → Roles*. The
 generate-meta button only appears for users who have **View** on
@@ -83,6 +84,21 @@ generate-meta button only appears for users who have **View** on
 
 The button is disabled until the page has been saved at least once (the backend
 reads the saved page content).
+
+## Page Assistant
+
+Users with the **AI Assistant** permission get a floating chat button on a
+page's content tab. The assistant knows the page's current (unsaved) form
+content and the template's block schema, answers questions about the page, and
+proposes edits — including adding, removing and reordering content blocks — as
+a diff. Approved changes are written into the open form; nothing is persisted
+until the user saves the page normally.
+
+The chat posts the page's live form data + message history to
+`POST /admin/api/ai/assistant/chat`. The controller builds a system prompt from
+the template metadata, runs an OpenAI function-calling loop server-side, and
+validates every proposed operation against the template schema before it
+reaches the browser. The API key never leaves the server.
 
 ## How it works
 

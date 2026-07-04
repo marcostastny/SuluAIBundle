@@ -8,5 +8,14 @@
     "sulu_ai.model_info": "Modellname, z. B. gpt-4o-mini",
     "sulu_ai.generate_meta": "Meta mit KI generieren",
     "sulu_ai.generate_meta_save_first": "Bitte die Seite speichern, bevor Meta-Informationen generiert werden.",
-    "sulu_ai.generate_meta_error": "Meta-Generierung fehlgeschlagen. Bitte KI-Einstellungen prüfen und erneut versuchen."
+    "sulu_ai.generate_meta_error": "Meta-Generierung fehlgeschlagen. Bitte KI-Einstellungen prüfen und erneut versuchen.",
+    "sulu_ai.assistant": "KI-Assistent",
+    "sulu_ai.assistant_placeholder": "Frage zur Seite stellen oder Änderung anfordern…",
+    "sulu_ai.assistant_thinking": "Denkt nach…",
+    "sulu_ai.assistant_apply": "Übernehmen",
+    "sulu_ai.assistant_discard": "Verwerfen",
+    "sulu_ai.assistant_applied": "Übernommen — Formular prüfen und speichern.",
+    "sulu_ai.assistant_discarded": "Vorschlag verworfen.",
+    "sulu_ai.assistant_error": "Die Assistent-Anfrage ist fehlgeschlagen. KI-Einstellungen prüfen und erneut versuchen.",
+    "sulu_ai.assistant_conflict": "Die Seite wurde seit diesem Vorschlag geändert. Bitte den Assistenten erneut fragen."
 }

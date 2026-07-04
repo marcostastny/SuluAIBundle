@@ -37,6 +37,12 @@ services:
     Marcostastny\SuluAIBundle\Service\Assistant\TemplateSchemaSerializer: ~
     Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator: ~
 
+    Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetCollector: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetResolver:
+        arguments:
+            $adminResources: '%sulu_search.admin_resources%'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

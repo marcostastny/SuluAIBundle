@@ -6,6 +6,7 @@ import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
 import DiffCard from './DiffCard';
+import NavigationCard from './NavigationCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -22,6 +23,10 @@ class AssistantWindow extends React.Component {
 
     @action handleToggle = () => {
         this.open = !this.open;
+    };
+
+    @action handleClear = () => {
+        assistantContextStore.clearMessages();
     };
 
     @action handleInputChange = (event) => {
@@ -58,12 +63,18 @@ class AssistantWindow extends React.Component {
                         <DiffCard action={messageAction} key={actionIndex} message={message} />
                     ))
                 }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'navigate')
+                    .map((messageAction, actionIndex) => (
+                        <NavigationCard action={messageAction} key={'nav-' + actionIndex} message={message} />
+                    ))
+                }
             </div>
         );
     };
 
     render() {
-        if (!assistantContextStore.context) {
+        if (!assistantContextStore.available) {
             return null;
         }
 
@@ -84,6 +95,14 @@ class AssistantWindow extends React.Component {
             <div className={styles.panel}>
                 <div className={styles.header}>
                     <span className={styles.title}>{translate('sulu_ai.assistant')}</span>
+                    <button
+                        aria-label={translate('sulu_ai.assistant_clear')}
+                        className={styles.closeButton}
+                        onClick={this.handleClear}
+                        type="button"
+                    >
+                        <Icon name="su-trash-alt" />
+                    </button>
                     <button className={styles.closeButton} onClick={this.handleToggle} type="button">
                         <Icon name="su-times" />
                     </button>

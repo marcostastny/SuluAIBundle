@@ -54,6 +54,10 @@ services:
             $entityManager: '@doctrine.orm.entity_manager'
             $securityChecker: '@sulu_security.security_checker'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\SearchContentTool:
+        arguments:
+            $adminResources: '%sulu_search.admin_resources%'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

@@ -25,3 +25,10 @@ sulu_ai.post_assistant_chat:
     controller: Marcostastny\SuluAIBundle\Controller\Admin\AssistantController::postAction
     defaults: { _format: json }
     requirements: { _format: json }
+
+sulu_ai.post_image_generate:
+    path: /ai/image/generate.{_format}
+    methods: POST
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\ImageGenerationController::postAction
+    defaults: { _format: json }
+    requirements: { _format: json }

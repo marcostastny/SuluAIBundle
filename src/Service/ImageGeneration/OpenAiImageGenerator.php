@@ -37,12 +37,13 @@ class OpenAiImageGenerator
         if ([] === $references) {
             $response = $this->httpClient->request('POST', $base . '/images/generations', [
                 'auth_bearer' => $apiKey,
+                // No response_format: the gpt-image-* models reject it and return
+                // b64_json by default; DALL·E returns a url, which the saver fetches.
                 'json' => [
                     'model' => $modelId,
                     'prompt' => $prompt,
                     'n' => $count,
                     'size' => $size,
-                    'response_format' => 'b64_json',
                 ],
             ]);
         } else {

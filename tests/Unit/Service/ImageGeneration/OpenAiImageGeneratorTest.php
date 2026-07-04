@@ -15,8 +15,10 @@ class OpenAiImageGeneratorTest extends TestCase
     public function testGenerateWithoutReferencesPostsToGenerations(): void
     {
         $capturedUrl = null;
-        $client = new MockHttpClient(function (string $method, string $url) use (&$capturedUrl): ResponseInterface {
+        $capturedBody = null;
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$capturedUrl, &$capturedBody): ResponseInterface {
             $capturedUrl = $url;
+            $capturedBody = $options['body'] ?? null;
 
             return new MockResponse((string) json_encode(['data' => [['b64_json' => 'AAA'], ['b64_json' => 'BBB']]]));
         });
@@ -25,6 +27,9 @@ class OpenAiImageGeneratorTest extends TestCase
         $result = $generator->generate('https://api.test/v1', 'secret', 'gpt-image-2', 'a cat', '1024x1024', 2, []);
 
         $this->assertSame('https://api.test/v1/images/generations', $capturedUrl);
+        // gpt-image-* models reject response_format; it must not be sent.
+        $this->assertIsString($capturedBody);
+        $this->assertStringNotContainsString('response_format', $capturedBody);
         $this->assertCount(2, $result);
         $this->assertSame('AAA', $result[0]['b64']);
     }

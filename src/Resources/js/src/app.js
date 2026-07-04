@@ -6,7 +6,6 @@ import {formToolbarActionRegistry} from 'sulu-admin-bundle/views';
 import {MetaGeneratorToolbarAction, AssistantFormBridge} from './containers';
 import AssistantWindow from './containers/Assistant';
 import ImageGeneratorOverlay from './containers/ImageGenerator';
-import startMediaToolbarButtonObserver from './utils/mediaToolbarButton';
 import assistantContextStore from './stores/assistantContextStore';
 import routerStore from './stores/routerStore';
 import imageGeneratorStore from './stores/imageGeneratorStore';
@@ -44,6 +43,5 @@ initializer.addUpdateConfigHook('sulu_admin', (config, initialized) => {
             document.body.appendChild(imageContainer);
             render(<ImageGeneratorOverlay />, imageContainer);
         }
-        startMediaToolbarButtonObserver();
     }
 });

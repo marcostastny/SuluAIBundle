@@ -1,3 +1,27 @@
+.fab {
+    position: fixed;
+    right: 30px;
+    bottom: 92px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #93c020;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.fab:hover {
+    background: #7ea01b;
+}
+
 .body {
     padding: 24px 30px 30px;
     overflow-x: hidden;

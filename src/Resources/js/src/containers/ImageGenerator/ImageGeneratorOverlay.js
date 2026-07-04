@@ -2,6 +2,8 @@
 import React from 'react';
 import {action, computed, observable} from 'mobx';
 import {observer} from 'mobx-react';
+import {Checkbox, Divider, FileUploadButton, Form, Overlay, SingleSelect} from 'sulu-admin-bundle/components';
+import TextArea from 'sulu-admin-bundle/components/TextArea';
 import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
 import imageGeneratorStore from '../../stores/imageGeneratorStore';
@@ -40,51 +42,77 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         });
     }
 
+    @computed get maxCount() {
+        const models = imageGeneratorStore.models;
+        const selected = this.selectedModelIds
+            .map((id) => models.find((candidate) => candidate.id === id))
+            .filter(Boolean);
+
+        if (selected.length === 0) {
+            return 4;
+        }
+
+        return Math.max(1, Math.min(4, ...selected.map((model) => model.maxImages || 1)));
+    }
+
     @computed get canGenerate() {
         return this.prompt.trim().length > 0 && this.selectedModelIds.length > 0 && !this.generating;
     }
 
-    @action handlePromptChange = (event) => {
-        this.prompt = event.currentTarget.value;
+    @action handlePromptChange = (value) => {
+        this.prompt = value || '';
     };
 
-    @action handleSelectChange = (field) => (event) => {
-        this[field] = event.currentTarget.value;
+    @action handleStyleChange = (value) => {
+        this.style = value;
     };
 
-    @action handleCount = (value) => {
+    @action handleFormatChange = (value) => {
+        this.format = value;
+    };
+
+    @action handleResolutionChange = (value) => {
+        this.resolution = value;
+    };
+
+    @action handlePurposeChange = (value) => {
+        this.purpose = value;
+    };
+
+    @action handleCountChange = (value) => {
         this.count = value;
     };
 
-    @action toggleModel = (id) => {
-        if (this.selectedModelIds.includes(id)) {
-            this.selectedModelIds = this.selectedModelIds.filter((candidate) => candidate !== id);
+    @action toggleModel = (checked, value) => {
+        if (checked) {
+            this.selectedModelIds = [...this.selectedModelIds, value];
         } else {
-            this.selectedModelIds = [...this.selectedModelIds, id];
+            this.selectedModelIds = this.selectedModelIds.filter((candidate) => candidate !== value);
         }
         if (!this.referencesAllowed) {
             this.references = [];
         }
+        if (this.count > this.maxCount) {
+            this.count = this.maxCount;
+        }
     };
 
-    @action handleReferenceFiles = (fileList) => {
-        const files = Array.from(fileList || []);
-        Promise.all(files.map((file) => this.readFile(file))).then(action((encoded) => {
-            this.references = encoded;
-        }));
-    };
-
-    readFile(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = String(reader.result || '');
-                const base64 = result.substring(result.indexOf(',') + 1);
-                resolve({filename: file.name, contentType: file.type || 'image/png', data: base64});
-            };
-            reader.readAsDataURL(file);
+    @action handleReferenceUpload = (file) => {
+        const reader = new FileReader();
+        reader.onload = action(() => {
+            const result = String(reader.result || '');
+            const base64 = result.substring(result.indexOf(',') + 1);
+            this.references = [
+                ...this.references,
+                {filename: file.name, contentType: file.type || 'image/png', data: base64},
+            ];
         });
-    }
+        reader.readAsDataURL(file);
+    };
+
+    @action removeReference = (index) => {
+        this.references = this.references.filter((reference, current) => current !== index);
+    };
 
     @action close = () => {
         imageGeneratorStore.close();
@@ -130,23 +158,15 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         }));
     };
 
-    renderOption(prefix, key) {
-        return <option key={key} value={key}>{translate(prefix + this.optionSuffix(prefix, key))}</option>;
-    }
-
-    optionSuffix(prefix, key) {
-        if (prefix === 'sulu_ai.image_format_') {
-            return FORMAT_TRANSLATION[key];
-        }
-
-        return key;
+    renderOptions(keys, prefix, translationMap) {
+        return keys.map((key) => (
+            <SingleSelect.Option key={key} value={key}>
+                {translate(prefix + (translationMap ? translationMap[key] : key))}
+            </SingleSelect.Option>
+        ));
     }
 
     render() {
-        if (!imageGeneratorStore.open) {
-            return null;
-        }
-
         const summary = [
             translate('sulu_ai.image_style_' + this.style),
             translate('sulu_ai.image_format_' + FORMAT_TRANSLATION[this.format]),
@@ -154,126 +174,136 @@ class ImageGeneratorOverlay extends React.Component<{}> {
             translate('sulu_ai.image_purpose_' + this.purpose),
         ].join(' · ');
 
+        const countKeys = [];
+        for (let value = 1; value <= this.maxCount; value++) {
+            countKeys.push(value);
+        }
+
         return (
-            <div className={styles.overlay} data-image-generator="true">
-                <div className={styles.panel}>
-                    <button className={styles.closeButton} onClick={this.close} type="button">✕</button>
-                    <h2 className={styles.title}>{translate('sulu_ai.image_generator_title')}</h2>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_prompt')}</label>
-                    <textarea
-                        className={styles.textarea}
-                        onChange={this.handlePromptChange}
-                        placeholder={translate('sulu_ai.image_prompt_placeholder')}
-                        value={this.prompt}
-                    />
-                    <p className={styles.summary}>{summary}</p>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_style')}</label>
-                    <select className={styles.select} onChange={this.handleSelectChange('style')} value={this.style}>
-                        {STYLE_KEYS.map((key) => this.renderOption('sulu_ai.image_style_', key))}
-                    </select>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_format')}</label>
-                    <select className={styles.select} onChange={this.handleSelectChange('format')} value={this.format}>
-                        {FORMAT_KEYS.map((key) => this.renderOption('sulu_ai.image_format_', key))}
-                    </select>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_resolution')}</label>
-                    <select
-                        className={styles.select}
-                        onChange={this.handleSelectChange('resolution')}
-                        value={this.resolution}
+            <Overlay
+                confirmDisabled={!this.canGenerate}
+                confirmLoading={this.generating}
+                confirmText={translate('sulu_ai.image_generate_button')}
+                onClose={this.close}
+                onConfirm={this.handleGenerate}
+                open={imageGeneratorStore.open}
+                size="small"
+                title={translate('sulu_ai.image_generator_title')}
+            >
+                <div className={styles.body}>
+                <Form>
+                    <Form.Field colSpan={12} label={translate('sulu_ai.image_prompt')} required={true}>
+                        <TextArea
+                            onChange={this.handlePromptChange}
+                            placeholder={translate('sulu_ai.image_prompt_placeholder')}
+                            rows={4}
+                            value={this.prompt}
+                        />
+                        <div className={styles.summary}>{summary}</div>
+                    </Form.Field>
+                    <Form.Field colSpan={6} label={translate('sulu_ai.image_style')}>
+                        <SingleSelect onChange={this.handleStyleChange} value={this.style}>
+                            {this.renderOptions(STYLE_KEYS, 'sulu_ai.image_style_')}
+                        </SingleSelect>
+                    </Form.Field>
+                    <Form.Field colSpan={6} label={translate('sulu_ai.image_format')}>
+                        <SingleSelect onChange={this.handleFormatChange} value={this.format}>
+                            {this.renderOptions(FORMAT_KEYS, 'sulu_ai.image_format_', FORMAT_TRANSLATION)}
+                        </SingleSelect>
+                    </Form.Field>
+                    <Form.Field colSpan={6} label={translate('sulu_ai.image_resolution')}>
+                        <SingleSelect onChange={this.handleResolutionChange} value={this.resolution}>
+                            {this.renderOptions(RESOLUTION_KEYS, 'sulu_ai.image_resolution_')}
+                        </SingleSelect>
+                    </Form.Field>
+                    <Form.Field colSpan={6} label={translate('sulu_ai.image_purpose')}>
+                        <SingleSelect onChange={this.handlePurposeChange} value={this.purpose}>
+                            {this.renderOptions(PURPOSE_KEYS, 'sulu_ai.image_purpose_')}
+                        </SingleSelect>
+                    </Form.Field>
+                    <Form.Field
+                        colSpan={12}
+                        description={translate('sulu_ai.image_models_hint')}
+                        label={translate('sulu_ai.image_models_label')}
                     >
-                        {RESOLUTION_KEYS.map((key) => this.renderOption('sulu_ai.image_resolution_', key))}
-                    </select>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_purpose')}</label>
-                    <select
-                        className={styles.select}
-                        onChange={this.handleSelectChange('purpose')}
-                        value={this.purpose}
-                    >
-                        {PURPOSE_KEYS.map((key) => this.renderOption('sulu_ai.image_purpose_', key))}
-                    </select>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_models_label')}</label>
-                    <p className={styles.hint}>{translate('sulu_ai.image_models_hint')}</p>
-                    <div className={styles.modelRow}>
-                        {imageGeneratorStore.models.map((model) => (
-                            <label key={model.id}>
-                                <input
+                        <div className={styles.models}>
+                            {imageGeneratorStore.models.map((model) => (
+                                <Checkbox
                                     checked={this.selectedModelIds.includes(model.id)}
-                                    onChange={() => this.toggleModel(model.id)}
-                                    type="checkbox"
-                                />
-                                {' '}{model.label}
-                            </label>
-                        ))}
-                    </div>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_count')}</label>
-                    <div className={styles.countRow}>
-                        {[1, 2, 3, 4].map((value) => (
-                            <button
-                                className={value === this.count ? styles.countButtonActive : styles.countButton}
-                                key={value}
-                                onClick={() => this.handleCount(value)}
-                                type="button"
-                            >
-                                {value}
-                            </button>
-                        ))}
-                    </div>
-
-                    <label className={styles.label}>{translate('sulu_ai.image_references')}</label>
-                    <div
-                        className={this.referencesAllowed
-                            ? styles.dropzone
-                            : styles.dropzone + ' ' + styles.dropzoneDisabled}
-                    >
-                        {this.referencesAllowed
-                            ? (
-                                <input
-                                    accept="image/*"
-                                    multiple
-                                    onChange={(event) => this.handleReferenceFiles(event.currentTarget.files)}
-                                    type="file"
-                                />
-                            )
-                            : translate('sulu_ai.image_references_unsupported')
-                        }
-                    </div>
-
-                    <button
-                        className={styles.generateButton}
-                        disabled={!this.canGenerate}
-                        onClick={this.handleGenerate}
-                        type="button"
-                    >
-                        {this.generating
-                            ? translate('sulu_ai.image_generating')
-                            : translate('sulu_ai.image_generate_button')}
-                    </button>
-
-                    {this.resultGroups.map((group) => (
-                        <div key={group.id}>
-                            <label className={styles.label}>{group.label}</label>
-                            <div className={styles.results}>
-                                {group.error && <div className={styles.resultError}>{group.error}</div>}
-                                {group.images.map((image) => (
-                                    <div className={styles.resultCard} key={image.id}>
-                                        <img alt={image.title} src={image.thumbnailUrl} />
-                                    </div>
-                                ))}
-                            </div>
-                            {!group.loading && !group.error && group.images.length > 0 &&
-                                <p className={styles.hint}>{translate('sulu_ai.image_saved_hint')}</p>
-                            }
+                                    key={model.id}
+                                    onChange={this.toggleModel}
+                                    value={model.id}
+                                >
+                                    {model.label}
+                                </Checkbox>
+                            ))}
                         </div>
-                    ))}
+                    </Form.Field>
+                    <Form.Field colSpan={6} label={translate('sulu_ai.image_count')}>
+                        <div className={styles.count}>
+                            <SingleSelect onChange={this.handleCountChange} value={this.count}>
+                                {countKeys.map((value) => (
+                                    <SingleSelect.Option key={value} value={value}>
+                                        {String(value)}
+                                    </SingleSelect.Option>
+                                ))}
+                            </SingleSelect>
+                        </div>
+                    </Form.Field>
+                    <Form.Field
+                        colSpan={12}
+                        description={this.referencesAllowed
+                            ? undefined
+                            : translate('sulu_ai.image_references_unsupported')}
+                        label={translate('sulu_ai.image_references')}
+                    >
+                        {this.referencesAllowed &&
+                            <div className={styles.references}>
+                                <FileUploadButton accept="image/*" icon="su-image" onUpload={this.handleReferenceUpload}>
+                                    {translate('sulu_ai.image_references_drop')}
+                                </FileUploadButton>
+                                <ul className={styles.referenceList}>
+                                    {this.references.map((reference, index) => (
+                                        <li className={styles.referenceChip} key={index}>
+                                            {reference.filename}
+                                            <button
+                                                className={styles.referenceRemove}
+                                                onClick={() => this.removeReference(index)}
+                                                type="button"
+                                            >
+                                                ✕
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        }
+                    </Form.Field>
+                </Form>
+
+                {this.resultGroups.length > 0 &&
+                    <div>
+                        <Divider />
+                        {this.resultGroups.map((group) => (
+                            <div className={styles.resultGroup} key={group.id}>
+                                <h3 className={styles.resultGroupTitle}>{group.label}</h3>
+                                {group.error && <div className={styles.error}>{group.error}</div>}
+                                <div className={styles.results}>
+                                    {group.images.map((image) => (
+                                        <div className={styles.resultCard} key={image.id}>
+                                            <img alt={image.title} src={image.thumbnailUrl} />
+                                        </div>
+                                    ))}
+                                </div>
+                                {!group.loading && !group.error && group.images.length > 0 &&
+                                    <p className={styles.savedHint}>{translate('sulu_ai.image_saved_hint')}</p>
+                                }
+                            </div>
+                        ))}
+                    </div>
+                }
                 </div>
-            </div>
+            </Overlay>
         );
     }
 }

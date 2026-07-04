@@ -102,18 +102,14 @@ class AiSettingAdmin extends Admin
     {
         return [
             self::SULU_ADMIN_SECURITY_SYSTEM => [
-                'AI Settings' => [
+                'AI' => [
                     AiSetting::SECURITY_CONTEXT => [
                         PermissionTypes::VIEW,
                         PermissionTypes::EDIT,
                     ],
-                ],
-                'AI Meta Generation' => [
                     AiSetting::SECURITY_CONTEXT_GENERATION => [
                         PermissionTypes::VIEW,
                     ],
-                ],
-                'AI Assistant' => [
                     AiSetting::SECURITY_CONTEXT_ASSISTANT => [
                         PermissionTypes::VIEW,
                     ],

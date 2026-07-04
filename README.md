@@ -57,18 +57,19 @@ cd assets/admin && npm install && npm run build
 
 ## Permissions
 
-The bundle registers two security contexts under *Settings → Roles*, so you can
-let content editors generate meta without giving them access to the API key:
+The bundle registers three security contexts in a single **AI** section under
+*Settings → Roles*, so you can let content editors use the AI features without
+giving them access to the API key:
 
-| Section | Context | Grants |
-|---|---|---|
-| **AI Settings** | `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
-| **AI Meta Generation** | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
-| **AI Assistant** | `sulu_ai.assistant` | **View** to show and use the assistant chat on page edit forms |
+| Context | Grants |
+|---|---|
+| `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
+| `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
+| `sulu_ai.assistant` | **View** to show and use the assistant chat on page edit forms |
 
 Grant the relevant permissions to each role under *Settings → Roles*. The
-generate-meta button only appears for users who have **View** on
-*AI Meta Generation*, and the endpoint enforces the same permission.
+generate-meta button and the assistant only appear for users who have **View**
+on the respective context, and the endpoints enforce the same permissions.
 
 ## Usage
 

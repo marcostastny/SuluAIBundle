@@ -7,6 +7,7 @@ import {MetaGeneratorToolbarAction, AssistantFormBridge} from './containers';
 import AssistantWindow from './containers/Assistant';
 import assistantContextStore from './stores/assistantContextStore';
 import routerStore from './stores/routerStore';
+import imageGeneratorStore from './stores/imageGeneratorStore';
 import {PasswordField} from './fields';
 
 // The admin router is created privately inside startAdmin(), which calls
@@ -21,6 +22,7 @@ Router.prototype.addUpdateAttributesHook = function(...args) {
 
 initializer.addUpdateConfigHook('sulu_ai_bundle', (config) => {
     assistantContextStore.setAvailable(Boolean(config && config.assistant && config.assistant.available));
+    imageGeneratorStore.setConfig(config && config.imageGeneration);
 });
 
 initializer.addUpdateConfigHook('sulu_admin', (config, initialized) => {

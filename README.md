@@ -12,6 +12,11 @@ AI features for [Sulu](https://sulu.io/) 3.
   after the user confirms with a click. On a page's content tab it additionally
   understands the page and its template's content blocks and edits the page via
   chat — every change is shown as a diff and only applied after approval.
+- An **AI Image Generator** reachable from the media library toolbar and the
+  media-selection popup: generate images from a prompt (with style, format,
+  resolution, purpose, model selection and optional reference images) through
+  the configured endpoint; results are saved into an **"AI Created"**
+  collection.
 
 ![AI Settings page](docs/images/settings.png)
 
@@ -98,6 +103,7 @@ giving them access to the API key:
 | `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
 | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
 | `sulu_ai.assistant` | **View** to show and use the assistant chat (globally and on page edit forms) |
+| `sulu_ai.image_generation` | **View** to show and use the image generator (requires image models configured in AI Settings) |
 
 Grant the relevant permissions to each role under *Settings → Roles*. The
 generate-meta button and the assistant only appear for users who have **View**
@@ -150,6 +156,16 @@ The conversation survives navigation; the trash icon in the header clears it.
    **Save**/**Publish** to persist. If the form changed after a proposal was
    made, applying it shows a conflict warning instead of corrupting the page.
 
+### Image generator
+
+1. In **AI Settings**, add one or more **Image models** (label + model id as the
+   endpoint expects, e.g. via a LiteLLM proxy; toggle *Supports reference
+   images* where applicable) and optionally a **Company image style prompt**.
+2. In the media library (or any media-selection popup) click **Generate image
+   (AI)**. Enter a prompt, pick options and one or more models, and generate.
+3. Generated images are saved into the **"AI Created"** collection; select them
+   from there as usual.
+
 ## How it works
 
 **Meta generation** posts the page id + locale to
@@ -172,3 +188,10 @@ navigation targets that this tool actually returned — the browser then renders
 them as buttons and navigates via the admin router on click.
 
 In both cases the API key never leaves the server.
+
+**Image generation** posts one request per selected model to
+`POST /admin/api/ai/image/generate`. The controller reuses the configured API
+URL + key, builds the prompt (prompt + style + purpose + company style prompt)
+and the `size` parameter, calls the OpenAI-compatible images endpoint
+(`/images/generations`, or `/images/edits` when reference images are supplied),
+and saves each result into the "AI Created" collection via Sulu's MediaManager.

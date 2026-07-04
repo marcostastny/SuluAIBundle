@@ -80,7 +80,9 @@ class ImageGenerationController
             $setting->getImageStylePrompt()
         );
         $size = $this->promptBuilder->buildSize(
-            isset($data['format']) ? (string) $data['format'] : null,
+            isset($data['format']) ? (string) $data['format'] : null
+        );
+        $quality = $this->promptBuilder->buildQuality(
             isset($data['resolution']) ? (string) $data['resolution'] : null
         );
 
@@ -92,7 +94,8 @@ class ImageGenerationController
                 $finalPrompt,
                 $size,
                 $count,
-                $references
+                $references,
+                $quality
             );
 
             $userId = $this->userId();

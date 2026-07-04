@@ -28,13 +28,24 @@ class ImagePromptBuilder
         'presentation' => 'optimized for a presentation slide',
     ];
 
-    /** @var array<string, array<string, string>> format => resolution => size */
+    /**
+     * @var array<string, string> format => size
+     *
+     * gpt-image models accept 1024x1024, 1536x1024 (landscape), 1024x1536
+     * (portrait) or auto. Map every format onto the closest supported size.
+     */
     public const SIZES = [
-        '1:1' => ['standard' => '1024x1024', 'high' => '1024x1024'],
-        '16:9' => ['standard' => '1792x1024', 'high' => '1792x1024'],
-        '9:16' => ['standard' => '1024x1792', 'high' => '1024x1792'],
-        '4:3' => ['standard' => '1024x1024', 'high' => '1024x1024'],
-        '3:2' => ['standard' => '1024x1024', 'high' => '1024x1024'],
+        '1:1' => '1024x1024',
+        '16:9' => '1536x1024',
+        '9:16' => '1024x1536',
+        '4:3' => '1536x1024',
+        '3:2' => '1536x1024',
+    ];
+
+    /** @var array<string, string> resolution option => images-API quality */
+    public const QUALITIES = [
+        'standard' => 'medium',
+        'high' => 'high',
     ];
 
     public function buildPrompt(
@@ -58,10 +69,13 @@ class ImagePromptBuilder
         return \implode("\n", \array_filter($parts, static fn (string $p): bool => '' !== $p));
     }
 
-    public function buildSize(?string $format, ?string $resolution): string
+    public function buildSize(?string $format): string
     {
-        $byResolution = self::SIZES[$format ?? ''] ?? self::SIZES['1:1'];
+        return self::SIZES[$format ?? ''] ?? self::SIZES['1:1'];
+    }
 
-        return $byResolution[$resolution ?? ''] ?? $byResolution['standard'];
+    public function buildQuality(?string $resolution): string
+    {
+        return self::QUALITIES[$resolution ?? ''] ?? self::QUALITIES['standard'];
     }
 }

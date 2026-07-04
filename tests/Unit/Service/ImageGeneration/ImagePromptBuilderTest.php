@@ -36,19 +36,29 @@ class ImagePromptBuilderTest extends TestCase
         $this->assertSame('Prompt', trim($result));
     }
 
-    public function testBuildSizeMapsFormatAndResolution(): void
+    public function testBuildSizeMapsFormatToGptImageSizes(): void
     {
         $builder = new ImagePromptBuilder();
 
-        $this->assertSame('1792x1024', $builder->buildSize('16:9', 'high'));
-        $this->assertSame('1024x1024', $builder->buildSize('1:1', 'standard'));
+        $this->assertSame('1536x1024', $builder->buildSize('16:9'));
+        $this->assertSame('1024x1536', $builder->buildSize('9:16'));
+        $this->assertSame('1024x1024', $builder->buildSize('1:1'));
     }
 
-    public function testBuildSizeFallsBackToSquareStandard(): void
+    public function testBuildSizeFallsBackToSquare(): void
     {
         $builder = new ImagePromptBuilder();
 
-        $this->assertSame('1024x1024', $builder->buildSize(null, null));
-        $this->assertSame('1024x1024', $builder->buildSize('unknown', 'unknown'));
+        $this->assertSame('1024x1024', $builder->buildSize(null));
+        $this->assertSame('1024x1024', $builder->buildSize('unknown'));
+    }
+
+    public function testBuildQualityMapsResolution(): void
+    {
+        $builder = new ImagePromptBuilder();
+
+        $this->assertSame('medium', $builder->buildQuality('standard'));
+        $this->assertSame('high', $builder->buildQuality('high'));
+        $this->assertSame('medium', $builder->buildQuality(null));
     }
 }

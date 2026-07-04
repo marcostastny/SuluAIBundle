@@ -30,21 +30,27 @@ class OpenAiImageGenerator
         string $prompt,
         string $size,
         int $count,
-        array $references
+        array $references,
+        ?string $quality = null
     ): array {
         $base = \rtrim($apiUrl, '/');
 
         if ([] === $references) {
+            $json = [
+                'model' => $modelId,
+                'prompt' => $prompt,
+                'n' => $count,
+                'size' => $size,
+            ];
+            if (null !== $quality) {
+                $json['quality'] = $quality;
+            }
+
             $response = $this->httpClient->request('POST', $base . '/images/generations', [
                 'auth_bearer' => $apiKey,
                 // No response_format: the gpt-image-* models reject it and return
                 // b64_json by default; DALL·E returns a url, which the saver fetches.
-                'json' => [
-                    'model' => $modelId,
-                    'prompt' => $prompt,
-                    'n' => $count,
-                    'size' => $size,
-                ],
+                'json' => $json,
             ]);
         } else {
             $fields = [
@@ -53,6 +59,9 @@ class OpenAiImageGenerator
                 'n' => (string) $count,
                 'size' => $size,
             ];
+            if (null !== $quality) {
+                $fields['quality'] = $quality;
+            }
             foreach ($references as $reference) {
                 $fields['image[]'][] = new DataPart(
                     $reference['data'],

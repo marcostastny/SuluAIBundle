@@ -18,3 +18,10 @@ sulu_ai.post_generate-meta:
     controller: Marcostastny\SuluAIBundle\Controller\Admin\MetaGenerationController::postAction
     defaults: { _format: json }
     requirements: { _format: json }
+
+sulu_ai.post_assistant_chat:
+    path: /ai/assistant/chat.{_format}
+    methods: POST
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\AssistantController::postAction
+    defaults: { _format: json }
+    requirements: { _format: json }

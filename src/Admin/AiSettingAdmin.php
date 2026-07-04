@@ -19,6 +19,7 @@ class AiSettingAdmin extends Admin
     public const TAB_VIEW = 'sulu_ai.settings';
     public const FORM_VIEW = 'sulu_ai.settings.form';
     public const PAGE_SEO_VIEW = 'sulu_page.page_edit_form.seo';
+    public const PAGE_CONTENT_VIEW = 'sulu_page.page_edit_form.content';
 
     public function __construct(
         private ViewBuilderFactoryInterface $viewBuilderFactory,
@@ -55,6 +56,7 @@ class AiSettingAdmin extends Admin
         }
 
         $this->appendGenerateMetaToolbarAction($viewCollection);
+        $this->appendAssistantToolbarAction($viewCollection);
     }
 
     private function appendGenerateMetaToolbarAction(ViewCollection $viewCollection): void
@@ -75,6 +77,24 @@ class AiSettingAdmin extends Admin
         }
     }
 
+    private function appendAssistantToolbarAction(ViewCollection $viewCollection): void
+    {
+        if (!$this->securityChecker->hasPermission(AiSetting::SECURITY_CONTEXT_ASSISTANT, PermissionTypes::VIEW)) {
+            return;
+        }
+
+        try {
+            $contentView = $viewCollection->get(static::PAGE_CONTENT_VIEW);
+            $contentView->setOption('toolbarActions', [
+                ...($contentView->getView()->getOption('toolbarActions') ?? []),
+                new ToolbarAction('sulu_ai.assistant'),
+            ]);
+            $viewCollection->add($contentView);
+        } catch (\Exception) {
+            // Page bundle / content view not available — nothing to do.
+        }
+    }
+
     /**
      * @return mixed[]
      */
@@ -82,14 +102,15 @@ class AiSettingAdmin extends Admin
     {
         return [
             self::SULU_ADMIN_SECURITY_SYSTEM => [
-                'AI Settings' => [
+                'AI' => [
                     AiSetting::SECURITY_CONTEXT => [
                         PermissionTypes::VIEW,
                         PermissionTypes::EDIT,
                     ],
-                ],
-                'AI Meta Generation' => [
                     AiSetting::SECURITY_CONTEXT_GENERATION => [
+                        PermissionTypes::VIEW,
+                    ],
+                    AiSetting::SECURITY_CONTEXT_ASSISTANT => [
                         PermissionTypes::VIEW,
                     ],
                 ],

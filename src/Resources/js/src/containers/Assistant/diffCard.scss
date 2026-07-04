@@ -1,0 +1,78 @@
+.card {
+    margin: 8px 40px 8px 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.summary {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: bold;
+}
+
+.row {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.row-label {
+    margin-bottom: 4px;
+    font-weight: bold;
+    color: #666;
+}
+
+.old-value,
+.new-value {
+    padding: 6px 8px;
+    border-radius: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.old-value {
+    margin-bottom: 4px;
+    background: #fbe5e5;
+    color: #922;
+    text-decoration: line-through;
+}
+
+.new-value {
+    background: #e2f4e2;
+    color: #164;
+}
+
+.status {
+    padding: 10px 12px;
+    color: #666;
+    font-style: italic;
+}
+
+.buttons {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.apply-button,
+.discard-button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.apply-button {
+    background: #52b6ca;
+    color: #fff;
+}
+
+.discard-button {
+    background: #e0e0e0;
+    color: #262626;
+}

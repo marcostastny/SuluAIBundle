@@ -3,6 +3,10 @@ services:
         autowire: true
         autoconfigure: true
 
+    _instanceof:
+        Marcostastny\SuluAIBundle\Service\Assistant\AssistantToolInterface:
+            tags: ['sulu_ai.assistant_tool']
+
     Marcostastny\SuluAIBundle\Service\ContentTextFlattener: ~
     Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator: ~
     Marcostastny\SuluAIBundle\Service\PageContentExtractor: ~
@@ -25,6 +29,25 @@ services:
             - { name: sulu.context, context: admin }
 
     Marcostastny\SuluAIBundle\Controller\Admin\MetaGenerationController:
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }
+
+    Marcostastny\SuluAIBundle\Service\Assistant\TemplateSchemaSerializer: ~
+    Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
+        arguments:
+            $tools: !tagged_iterator sulu_ai.assistant_tool
+
+    Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder:
+        arguments:
+            $formMetadataProvider: '@sulu_admin.form_metadata_provider'
+
+    Marcostastny\SuluAIBundle\Controller\Admin\AssistantController:
         public: true
         tags:
             - { name: sulu.context, context: admin }

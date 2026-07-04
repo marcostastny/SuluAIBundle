@@ -8,5 +8,14 @@
     "sulu_ai.model_info": "Model name, e.g. gpt-4o-mini",
     "sulu_ai.generate_meta": "Generate meta with AI",
     "sulu_ai.generate_meta_save_first": "Save the page before generating meta information.",
-    "sulu_ai.generate_meta_error": "Meta generation failed. Check the AI settings and try again."
+    "sulu_ai.generate_meta_error": "Meta generation failed. Check the AI settings and try again.",
+    "sulu_ai.assistant": "AI Assistant",
+    "sulu_ai.assistant_placeholder": "Ask about this page or request a change…",
+    "sulu_ai.assistant_thinking": "Thinking…",
+    "sulu_ai.assistant_apply": "Apply",
+    "sulu_ai.assistant_discard": "Discard",
+    "sulu_ai.assistant_applied": "Applied — review the form and save.",
+    "sulu_ai.assistant_discarded": "Proposal discarded.",
+    "sulu_ai.assistant_error": "The assistant request failed. Check the AI settings and try again.",
+    "sulu_ai.assistant_conflict": "The page changed since this proposal was created. Please ask the assistant again."
 }

@@ -51,6 +51,36 @@ class AssistantContextBuilder
     }
 
     /**
+     * System prompt for requests without an attached page form (global mode).
+     */
+    public function buildGlobalPrompt(): string
+    {
+        $navigationGuidance = $this->navigationGuidance();
+
+        return <<<PROMPT
+            You are a content assistant embedded in the Sulu CMS administration.
+            The user is currently NOT editing a page, so you cannot change any content from here.
+
+            {$navigationGuidance}
+
+            Rules:
+            - Answer in the language the user writes in.
+            - When the user wants to open or edit something, call search_content to find it, then call propose_navigation so the user can open it with one click.
+            - If the user asks you to change content directly, explain that you can only edit on the content edit form and offer to navigate there.
+            PROMPT;
+    }
+
+    private function navigationGuidance(): string
+    {
+        return <<<'GUIDANCE'
+            Finding and opening content:
+            - Use the search_content tool to find existing pages, snippets, articles and forms by title or text.
+            - To let the user open a result, call the propose_navigation tool with targets (type, id, locale) exactly as returned by search_content, plus a one-sentence message. Never invent ids and never output raw admin links in prose.
+            - Navigation only happens after the user clicks a button - you never redirect automatically.
+            GUIDANCE;
+    }
+
+    /**
      * @param array<string, mixed> $schema
      * @param mixed $formData
      */
@@ -58,6 +88,7 @@ class AssistantContextBuilder
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
+        $navigationGuidance = $this->navigationGuidance();
 
         return <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
@@ -80,6 +111,8 @@ class AssistantContextBuilder
             - Only use properties, fields and block types that exist in the TEMPLATE SCHEMA. Never invent new ones.
             - Keep values in the format the field type expects (e.g. HTML for "text_editor" fields, plain text for "text_line" fields).
             - Do not change the "url" property unless the user explicitly asks for it.
+
+            {$navigationGuidance}
 
             TEMPLATE SCHEMA:
             {$schemaJson}

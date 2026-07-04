@@ -17,5 +17,12 @@
     "sulu_ai.assistant_applied": "Applied — review the form and save.",
     "sulu_ai.assistant_discarded": "Proposal discarded.",
     "sulu_ai.assistant_error": "The assistant request failed. Check the AI settings and try again.",
-    "sulu_ai.assistant_conflict": "The page changed since this proposal was created. Please ask the assistant again."
+    "sulu_ai.assistant_conflict": "The page changed since this proposal was created. Please ask the assistant again.",
+    "sulu_ai.assistant_open": "Open",
+    "sulu_ai.assistant_opened": "Opened.",
+    "sulu_ai.assistant_clear": "Clear conversation",
+    "sulu_ai.assistant_type_page": "Page",
+    "sulu_ai.assistant_type_snippet": "Snippet",
+    "sulu_ai.assistant_type_article": "Article",
+    "sulu_ai.assistant_type_form": "Form"
 }

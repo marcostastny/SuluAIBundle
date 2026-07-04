@@ -15,6 +15,7 @@ services:
         arguments:
             $viewBuilderFactory: '@sulu_admin.view_builder_factory'
             $securityChecker: '@sulu_security.security_checker'
+            $entityManager: '@doctrine.orm.entity_manager'
         tags:
             - { name: sulu.admin }
             - { name: sulu.context, context: admin }
@@ -36,6 +37,27 @@ services:
 
     Marcostastny\SuluAIBundle\Service\Assistant\TemplateSchemaSerializer: ~
     Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetCollector: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetResolver:
+        arguments:
+            $adminResources: '%sulu_search.admin_resources%'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\AdminIndexSearcher:
+        arguments:
+            $engine: '@cmsig_seal.engine.default'
+            $tokenStorage: '@security.token_storage'
+            $maskConverter: '@sulu_security.mask_converter'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\FormTitleSearcher:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $securityChecker: '@sulu_security.security_checker'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\SearchContentTool:
+        arguments:
+            $adminResources: '%sulu_search.admin_resources%'
 
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:

@@ -2,6 +2,7 @@
 import {action, observable, toJS} from 'mobx';
 import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
+import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
 
@@ -9,22 +10,16 @@ class AssistantContextStore {
     @observable.ref context = null;
     @observable messages = [];
     @observable loading = false;
-    contextKey = null;
+    @observable available = false;
+
+    @action setAvailable(available) {
+        this.available = available;
+    }
 
     @action setContext(context) {
-        const resourceFormStore = context.resourceFormStore;
-        const locale = resourceFormStore.locale ? resourceFormStore.locale.get() : '';
-        const key = context.type + '-' + String(resourceFormStore.id) + '-' + String(locale);
-
-        // Keep the chat history when the same page in the same locale is re-opened
-        // (e.g. after switching tabs and coming back).
-        if (key !== this.contextKey) {
-            this.messages = [];
-        }
-
-        this.contextKey = key;
         this.context = context;
         this.loading = false;
+        routerStore.setRouter(context.router);
     }
 
     @action clearContext() {
@@ -32,14 +27,18 @@ class AssistantContextStore {
         this.loading = false;
     }
 
+    @action clearMessages() {
+        this.messages = [];
+    }
+
     @action sendMessage(text) {
-        const context = this.context;
-        if (!context || this.loading || !text.trim()) {
+        if (this.loading || !text.trim()) {
             return Promise.resolve();
         }
 
-        const {resourceFormStore, router} = context;
-        const formData = toJS(resourceFormStore.data);
+        const context = this.context;
+        const resourceFormStore = context ? context.resourceFormStore : null;
+        const formData = resourceFormStore ? toJS(resourceFormStore.data) : {};
 
         this.messages.push({role: 'user', content: text.trim(), actions: [], applied: false, discarded: false});
         this.loading = true;
@@ -49,13 +48,13 @@ class AssistantContextStore {
             .map((message) => ({role: message.role, content: message.content}));
 
         return Requester.post(ENDPOINT, {
-            context: {
+            context: context && resourceFormStore ? {
                 type: context.type,
                 id: resourceFormStore.id,
                 locale: resourceFormStore.locale ? resourceFormStore.locale.get() : undefined,
                 template: formData.template,
-                webspace: router.attributes.webspace,
-            },
+                webspace: context.router.attributes.webspace,
+            } : null,
             formData,
             messages: history,
         }).then(action((response) => {

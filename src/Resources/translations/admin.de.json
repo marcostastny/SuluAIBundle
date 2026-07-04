@@ -17,5 +17,12 @@
     "sulu_ai.assistant_applied": "Übernommen — Formular prüfen und speichern.",
     "sulu_ai.assistant_discarded": "Vorschlag verworfen.",
     "sulu_ai.assistant_error": "Die Assistent-Anfrage ist fehlgeschlagen. KI-Einstellungen prüfen und erneut versuchen.",
-    "sulu_ai.assistant_conflict": "Die Seite wurde seit diesem Vorschlag geändert. Bitte den Assistenten erneut fragen."
+    "sulu_ai.assistant_conflict": "Die Seite wurde seit diesem Vorschlag geändert. Bitte den Assistenten erneut fragen.",
+    "sulu_ai.assistant_open": "Öffnen",
+    "sulu_ai.assistant_opened": "Geöffnet.",
+    "sulu_ai.assistant_clear": "Unterhaltung leeren",
+    "sulu_ai.assistant_type_page": "Seite",
+    "sulu_ai.assistant_type_snippet": "Snippet",
+    "sulu_ai.assistant_type_article": "Artikel",
+    "sulu_ai.assistant_type_form": "Formular"
 }

@@ -37,4 +37,32 @@ class AiSettingImageTest extends TestCase
     {
         $this->assertSame('sulu_ai.image_generation', AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION);
     }
+
+    public function testIsConfiguredRequiresChatModelByDefault(): void
+    {
+        $setting = new AiSetting();
+        $setting->setEnabled(true);
+        $setting->setApiUrl('https://api.test/v1');
+        $setting->setApiKey('key');
+
+        $this->assertFalse($setting->isConfigured());
+        $this->assertTrue($setting->isConfigured(false));
+
+        $setting->setModel('gpt-test');
+        $this->assertTrue($setting->isConfigured());
+    }
+
+    public function testIsConfiguredFalseWhenDisabledOrIncomplete(): void
+    {
+        $setting = new AiSetting();
+        $setting->setApiUrl('https://api.test/v1');
+        $setting->setApiKey('key');
+        $setting->setModel('gpt-test');
+
+        $this->assertFalse($setting->isConfigured(), 'disabled setting is not configured');
+
+        $setting->setEnabled(true);
+        $setting->setApiKey(null);
+        $this->assertFalse($setting->isConfigured(false), 'missing api key is not configured');
+    }
 }

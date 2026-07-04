@@ -49,7 +49,8 @@ class ImageGenerationController
         }
 
         $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
-        if (!$setting || !$setting->isEnabled() || !$setting->getApiUrl() || !$setting->getApiKey()) {
+        // Image generation uses its own imageModels list, not the chat model.
+        if (!$setting || !$setting->isConfigured(false)) {
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 
@@ -71,7 +72,9 @@ class ImageGenerationController
 
         $locale = (string) ($data['locale'] ?? 'en');
         $count = (int) ($data['count'] ?? 1);
-        $count = \max(1, \min(self::MAX_COUNT, $count));
+        // Enforce the per-model maxImages cap server-side; the UI clamp is only advisory.
+        $modelMax = \max(1, (int) ($model['maxImages'] ?? 1));
+        $count = \max(1, \min(self::MAX_COUNT, $modelMax, $count));
 
         $finalPrompt = $this->promptBuilder->buildPrompt(
             $prompt,

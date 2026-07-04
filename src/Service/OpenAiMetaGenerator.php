@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-
 /**
  * Calls an OpenAI-compatible chat-completions endpoint to produce SEO meta.
  */
 class OpenAiMetaGenerator
 {
-    public function __construct(private HttpClientInterface $httpClient)
+    public function __construct(private OpenAiClient $client)
     {
     }
 
@@ -26,30 +24,14 @@ class OpenAiMetaGenerator
         string $body,
         string $locale
     ): array {
-        $response = $this->httpClient->request(
-            'POST',
-            \rtrim($apiUrl, '/') . '/chat/completions',
-            [
-                'auth_bearer' => $apiKey,
-                'json' => [
-                    'model' => $model,
-                    'response_format' => ['type' => 'json_object'],
-                    'messages' => [
-                        ['role' => 'system', 'content' => $this->systemPrompt($locale)],
-                        ['role' => 'user', 'content' => $this->userPrompt($title, $body)],
-                    ],
-                ],
-            ]
-        );
-
-        $statusCode = $response->getStatusCode();
-        $data = $response->toArray(false);
-
-        if ($statusCode >= 400) {
-            $message = $data['error']['message'] ?? \json_encode($data);
-
-            throw new \RuntimeException(\sprintf('API returned status %d: %s', $statusCode, $message));
-        }
+        $data = $this->client->postJson($apiUrl, $apiKey, '/chat/completions', [
+            'model' => $model,
+            'response_format' => ['type' => 'json_object'],
+            'messages' => [
+                ['role' => 'system', 'content' => $this->systemPrompt($locale)],
+                ['role' => 'user', 'content' => $this->userPrompt($title, $body)],
+            ],
+        ]);
 
         $content = $data['choices'][0]['message']['content'] ?? '';
 

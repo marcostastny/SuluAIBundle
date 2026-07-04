@@ -129,6 +129,39 @@ class ImageGenerationControllerTest extends TestCase
         $this->assertSame(10, $decoded['images'][0]['id']);
     }
 
+    public function testCountClampedToModelMaxImages(): void
+    {
+        $capturedCount = null;
+        $generator = $this->createMock(OpenAiImageGenerator::class);
+        $generator->method('generate')->willReturnCallback(
+            function ($apiUrl, $apiKey, $modelId, $prompt, $size, $count) use (&$capturedCount): array {
+                $capturedCount = $count;
+
+                return [];
+            }
+        );
+
+        $collection = $this->createMock(AiCreatedCollection::class);
+        $collection->method('ensure')->willReturn(3);
+
+        $setting = new AiSetting();
+        $setting->setEnabled(true);
+        $setting->setApiUrl('https://api.test/v1');
+        $setting->setApiKey('key');
+        $setting->setImageModels([
+            ['label' => 'Capped', 'modelId' => 'gpt-image-2', 'supportsReference' => false, 'maxImages' => 1],
+        ]);
+
+        $response = $this->controller($setting, $generator, $collection)->postAction($this->request([
+            'modelId' => 'gpt-image-2',
+            'prompt' => 'a cat',
+            'count' => 4,
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(1, $capturedCount, 'count must be clamped to the model\'s maxImages');
+    }
+
     public function testGenerationFailureReturns502(): void
     {
         $generator = $this->createMock(OpenAiImageGenerator::class);

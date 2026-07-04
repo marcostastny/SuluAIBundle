@@ -1,8 +1,8 @@
 // @flow
-import React, {Fragment} from 'react';
+import React from 'react';
 import {action, computed, observable} from 'mobx';
 import {observer} from 'mobx-react';
-import {Checkbox, Divider, FileUploadButton, Form, Icon, Overlay, SingleSelect} from 'sulu-admin-bundle/components';
+import {Checkbox, Divider, FileUploadButton, Form, Overlay, SingleSelect} from 'sulu-admin-bundle/components';
 import TextArea from 'sulu-admin-bundle/components/TextArea';
 import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
@@ -114,11 +114,6 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         this.references = this.references.filter((reference, current) => current !== index);
     };
 
-    @action handleOpen = () => {
-        const match = window.location.hash.match(/\/([a-z]{2})(?:[/?]|$)/);
-        imageGeneratorStore.openOverlay({locale: match ? match[1] : 'en', collectionId: null});
-    };
-
     @action close = () => {
         imageGeneratorStore.close();
         this.resultGroups = [];
@@ -189,18 +184,7 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         }
 
         return (
-            <Fragment>
-                {!imageGeneratorStore.open &&
-                    <button
-                        aria-label={translate('sulu_ai.image_generate')}
-                        className={styles.fab}
-                        onClick={this.handleOpen}
-                        type="button"
-                    >
-                        <Icon name="su-image" />
-                    </button>
-                }
-                <Overlay
+            <Overlay
                 confirmDisabled={!this.canGenerate}
                 confirmLoading={this.generating}
                 confirmText={translate('sulu_ai.image_generate_button')}
@@ -323,8 +307,7 @@ class ImageGeneratorOverlay extends React.Component<{}> {
                     </div>
                 }
                 </div>
-                </Overlay>
-            </Fragment>
+            </Overlay>
         );
     }
 }

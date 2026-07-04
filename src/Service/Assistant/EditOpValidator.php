@@ -67,6 +67,9 @@ class EditOpValidator
                 if ('block' === $fields[$property]['type']) {
                     return \sprintf('"%s" is a block property; use setBlockField/insertBlock/removeBlock/moveBlock.', $property);
                 }
+                if (!$this->isValidFieldValue($op['value'] ?? null)) {
+                    return \sprintf('value for "%s" must be a scalar or a list of scalars.', $property);
+                }
 
                 return null;
 
@@ -86,6 +89,9 @@ class EditOpValidator
                 $typeFields = $fields[$property]['blockTypes'][$blockType]['fields'] ?? [];
                 if (!isset($typeFields[$blockField])) {
                     return \sprintf('block %d of "%s" is a "%s" block, which has no field "%s".', $index, $property, $blockType, $blockField);
+                }
+                if (!$this->isValidFieldValue($op['value'] ?? null)) {
+                    return \sprintf('value for "%s/%d/%s" must be a scalar or a list of scalars.', $property, $index, $blockField);
                 }
 
                 return null;
@@ -146,6 +152,33 @@ class EditOpValidator
             default:
                 return \sprintf('unknown op "%s".', $kind);
         }
+    }
+
+    /**
+     * A field value must be a scalar, null, or a flat list of scalars (e.g. a
+     * multi-select). Nested objects/associative arrays are rejected so the
+     * model cannot write a structure into a text field, which would corrupt the
+     * form data and break the field's input on the client.
+     */
+    private function isValidFieldValue(mixed $value): bool
+    {
+        if (null === $value || \is_scalar($value)) {
+            return true;
+        }
+        if (\is_array($value)) {
+            if (!\array_is_list($value)) {
+                return false;
+            }
+            foreach ($value as $item) {
+                if (!\is_scalar($item)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

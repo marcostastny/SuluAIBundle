@@ -11,18 +11,25 @@ import styles from './assistantWindow.scss';
 
 @observer
 class AssistantWindow extends React.Component {
-    @observable open = false;
     @observable inputValue = '';
     messagesEndRef = React.createRef();
+    scrollSignature = '';
 
     componentDidUpdate() {
+        // Only scroll on a new message or when the thinking indicator toggles —
+        // not on every keystroke (inputValue is an observable read in render()).
+        const signature = assistantContextStore.messages.length + ':' + (assistantContextStore.loading ? '1' : '0');
+        if (signature === this.scrollSignature) {
+            return;
+        }
+        this.scrollSignature = signature;
         if (this.messagesEndRef.current) {
             this.messagesEndRef.current.scrollIntoView({behavior: 'smooth'});
         }
     }
 
-    @action handleToggle = () => {
-        this.open = !this.open;
+    handleToggle = () => {
+        assistantContextStore.togglePanel();
     };
 
     @action handleClear = () => {
@@ -74,21 +81,8 @@ class AssistantWindow extends React.Component {
     };
 
     render() {
-        if (!assistantContextStore.available) {
+        if (!assistantContextStore.available || !assistantContextStore.panelOpen) {
             return null;
-        }
-
-        if (!this.open) {
-            return (
-                <button
-                    aria-label={translate('sulu_ai.assistant')}
-                    className={styles.fab}
-                    onClick={this.handleToggle}
-                    type="button"
-                >
-                    <Icon name="su-magic" />
-                </button>
-            );
         }
 
         return (

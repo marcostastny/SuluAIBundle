@@ -54,4 +54,37 @@ class AiSettingControllerTest extends TestCase
         $this->assertSame(2, $stored[0]['maxImages']);
         $this->assertSame('Brand look', $setting->getImageStylePrompt());
     }
+
+    public function testPutWithoutImageKeysKeepsExistingImageConfig(): void
+    {
+        $setting = new AiSetting();
+        $setting->setImageModels([
+            ['type' => 'model', 'label' => 'GPT Image 2', 'modelId' => 'gpt-image-2', 'supportsReference' => true, 'maxImages' => 4],
+        ]);
+        $setting->setImageStylePrompt('Brand look');
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($setting);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $viewHandler = $this->createMock(ViewHandlerInterface::class);
+        $viewHandler->method('handle')->willReturnCallback(
+            static fn (View $view): Response => new Response()
+        );
+
+        $controller = new AiSettingController($entityManager, $viewHandler);
+
+        // An old-shape payload without image keys must not wipe saved image config.
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'apiKey' => 'key',
+            'model' => 'gpt-test',
+            'enabled' => true,
+        ]));
+
+        $this->assertCount(1, $setting->getImageModels());
+        $this->assertSame('gpt-image-2', $setting->getImageModels()[0]['modelId']);
+        $this->assertSame('Brand look', $setting->getImageStylePrompt());
+    }
 }

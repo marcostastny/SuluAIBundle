@@ -38,7 +38,7 @@ class MetaGenerationController
         }
 
         $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
-        if (!$setting || !$setting->isEnabled() || !$setting->getApiUrl() || !$setting->getApiKey() || !$setting->getModel()) {
+        if (!$setting || !$setting->isConfigured()) {
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 

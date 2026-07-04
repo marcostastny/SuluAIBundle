@@ -1,0 +1,10 @@
+.launcher {
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
+}

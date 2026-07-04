@@ -33,27 +33,37 @@ class GeneratedImageSaver
         if (false === $tmpPath) {
             throw new \RuntimeException('Unable to create a temporary file for the generated image.');
         }
-        \file_put_contents($tmpPath, $bytes);
 
-        $uploadedFile = new UploadedFile($tmpPath, $this->fileName($title), 'image/png', null, true);
+        try {
+            \file_put_contents($tmpPath, $bytes);
 
-        $media = $this->mediaManager->save(
-            $uploadedFile,
-            [
-                'collection' => $collectionId,
-                'locale' => $locale,
-                'title' => $title,
-            ],
-            $userId
-        );
+            $uploadedFile = new UploadedFile($tmpPath, $this->fileName($title), 'image/png', null, true);
 
-        $thumbnails = $media->getThumbnails() ?: [];
+            $media = $this->mediaManager->save(
+                $uploadedFile,
+                [
+                    'collection' => $collectionId,
+                    'locale' => $locale,
+                    'title' => $title,
+                ],
+                $userId
+            );
 
-        return [
-            'id' => (int) $media->getId(),
-            'thumbnailUrl' => (string) (\reset($thumbnails) ?: $media->getUrl()),
-            'title' => (string) $media->getTitle(),
-        ];
+            $thumbnails = $media->getThumbnails() ?: [];
+
+            return [
+                'id' => (int) $media->getId(),
+                'thumbnailUrl' => (string) (\reset($thumbnails) ?: $media->getUrl()),
+                'title' => (string) $media->getTitle(),
+            ];
+        } finally {
+            // Sulu's storage copies the file's contents rather than moving it,
+            // so the temp file must be removed here or it leaks into the system
+            // temp dir on every generated image.
+            if (\is_file($tmpPath)) {
+                @\unlink($tmpPath);
+            }
+        }
     }
 
     /**

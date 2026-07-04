@@ -133,35 +133,49 @@ class AiSettingAdmin extends Admin
      */
     public function getConfig(): ?array
     {
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
-        $configured = null !== $setting
-            && $setting->isEnabled()
-            && $setting->getApiUrl()
-            && $setting->getApiKey()
-            && $setting->getModel();
-
-        $models = [];
-        foreach ($setting?->getImageModels() ?? [] as $model) {
-            $models[] = [
-                'label' => (string) ($model['label'] ?? ''),
-                'id' => (string) ($model['modelId'] ?? ''),
-                'supportsReference' => (bool) ($model['supportsReference'] ?? false),
-                'maxImages' => (int) ($model['maxImages'] ?? 1),
+        try {
+            $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        } catch (\Throwable) {
+            // The settings table/columns may not exist yet (bundle installed but
+            // schema not updated). getConfig() feeds the shared /admin/config
+            // endpoint, so a thrown query would take down the entire admin UI —
+            // degrade to "not configured" instead.
+            return [
+                'assistant' => ['available' => false],
+                'imageGeneration' => ['available' => false, 'models' => []],
             ];
+        }
+
+        $configured = null !== $setting && $setting->isConfigured();
+
+        $imageAvailable = $configured && $this->securityChecker->hasPermission(
+            AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
+            PermissionTypes::VIEW
+        );
+
+        // Only expose the configured models to users who may use image
+        // generation — the list is otherwise withheld from the config payload.
+        $models = [];
+        if ($imageAvailable) {
+            foreach ($setting?->getImageModels() ?? [] as $model) {
+                $models[] = [
+                    'label' => (string) ($model['label'] ?? ''),
+                    'id' => (string) ($model['modelId'] ?? ''),
+                    'supportsReference' => (bool) ($model['supportsReference'] ?? false),
+                    'maxImages' => (int) ($model['maxImages'] ?? 1),
+                ];
+            }
         }
 
         return [
             'assistant' => [
-                'available' => (bool) $configured && $this->securityChecker->hasPermission(
+                'available' => $configured && $this->securityChecker->hasPermission(
                     AiSetting::SECURITY_CONTEXT_ASSISTANT,
                     PermissionTypes::VIEW
                 ),
             ],
             'imageGeneration' => [
-                'available' => (bool) $configured && [] !== $models && $this->securityChecker->hasPermission(
-                    AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
-                    PermissionTypes::VIEW
-                ),
+                'available' => $imageAvailable && [] !== $models,
                 'models' => $models,
             ],
         ];

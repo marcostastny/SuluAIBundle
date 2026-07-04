@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service\Assistant;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 
 /**
  * Runs the OpenAI-compatible function-calling loop for the assistant.
@@ -16,7 +16,7 @@ class AssistantAgent
     private const MAX_ITERATIONS = 5;
 
     public function __construct(
-        private HttpClientInterface $httpClient,
+        private OpenAiClient $client,
         private ToolRegistry $toolRegistry,
         private NavigationTargetCollector $targetCollector,
     ) {
@@ -174,27 +174,11 @@ class AssistantAgent
      */
     private function requestCompletion(string $apiUrl, string $apiKey, string $model, array $conversation, array $tools): array
     {
-        $response = $this->httpClient->request(
-            'POST',
-            \rtrim($apiUrl, '/') . '/chat/completions',
-            [
-                'auth_bearer' => $apiKey,
-                'json' => [
-                    'model' => $model,
-                    'messages' => $conversation,
-                    'tools' => $tools,
-                ],
-            ]
-        );
-
-        $statusCode = $response->getStatusCode();
-        $data = $response->toArray(false);
-
-        if ($statusCode >= 400) {
-            $message = $data['error']['message'] ?? \json_encode($data);
-
-            throw new \RuntimeException(\sprintf('API returned status %d: %s', $statusCode, $message));
-        }
+        $data = $this->client->postJson($apiUrl, $apiKey, '/chat/completions', [
+            'model' => $model,
+            'messages' => $conversation,
+            'tools' => $tools,
+        ]);
 
         $message = $data['choices'][0]['message'] ?? null;
         if (!\is_array($message)) {

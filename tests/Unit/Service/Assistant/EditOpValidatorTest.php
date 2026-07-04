@@ -68,6 +68,44 @@ class EditOpValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validate($ops, $this->schema(), $this->formData()));
     }
 
+    public function testSetRejectsNonScalarValue(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'set', 'path' => '/title', 'value' => ['de' => 'x']]],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('scalar', $errors[0]);
+    }
+
+    public function testSetBlockFieldRejectsNonScalarValue(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'setBlockField', 'path' => '/blocks/0/text', 'value' => ['nested' => true]]],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('scalar', $errors[0]);
+    }
+
+    public function testSetAcceptsScalarAndListValues(): void
+    {
+        $errors = $this->validator->validate(
+            [
+                ['op' => 'set', 'path' => '/title', 'value' => 'plain'],
+                ['op' => 'set', 'path' => '/article', 'value' => ['a', 'b']],
+            ],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertSame([], $errors);
+    }
+
     public function testInsertRaisesTheValidIndexRangeForLaterOps(): void
     {
         // formData has 2 blocks; after the insert, index 2 is a valid target.

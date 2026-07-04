@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service\ImageGeneration;
 
+use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Calls an OpenAI-compatible images endpoint (generations, or edits when
@@ -14,7 +14,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class OpenAiImageGenerator
 {
-    public function __construct(private HttpClientInterface $httpClient)
+    public function __construct(private OpenAiClient $client)
     {
     }
 
@@ -33,8 +33,6 @@ class OpenAiImageGenerator
         array $references,
         ?string $quality = null
     ): array {
-        $base = \rtrim($apiUrl, '/');
-
         if ([] === $references) {
             $json = [
                 'model' => $modelId,
@@ -46,12 +44,9 @@ class OpenAiImageGenerator
                 $json['quality'] = $quality;
             }
 
-            $response = $this->httpClient->request('POST', $base . '/images/generations', [
-                'auth_bearer' => $apiKey,
-                // No response_format: the gpt-image-* models reject it and return
-                // b64_json by default; DALL·E returns a url, which the saver fetches.
-                'json' => $json,
-            ]);
+            // No response_format: the gpt-image-* models reject it and return
+            // b64_json by default; DALL·E returns a url, which the saver fetches.
+            $data = $this->client->postJson($apiUrl, $apiKey, '/images/generations', $json);
         } else {
             $fields = [
                 'model' => $modelId,
@@ -63,27 +58,18 @@ class OpenAiImageGenerator
                 $fields['quality'] = $quality;
             }
             foreach ($references as $reference) {
-                $fields['image[]'][] = new DataPart(
+                // Integer-keyed single-entry wrappers make FormDataPart emit
+                // repeated "image[]" parts. Assigning to $fields['image[]'][]
+                // instead would name them "image[][0]", "image[][1]", which the
+                // images/edits endpoint rejects.
+                $fields[] = ['image[]' => new DataPart(
                     $reference['data'],
                     $reference['filename'],
                     $reference['contentType']
-                );
+                )];
             }
-            $formData = new FormDataPart($fields);
-            $response = $this->httpClient->request('POST', $base . '/images/edits', [
-                'auth_bearer' => $apiKey,
-                'headers' => $formData->getPreparedHeaders()->toArray(),
-                'body' => $formData->bodyToIterable(),
-            ]);
-        }
 
-        $statusCode = $response->getStatusCode();
-        $data = $response->toArray(false);
-
-        if ($statusCode >= 400) {
-            $message = $data['error']['message'] ?? \json_encode($data);
-
-            throw new \RuntimeException(\sprintf('Image API returned status %d: %s', $statusCode, $message));
+            $data = $this->client->postMultipart($apiUrl, $apiKey, '/images/edits', new FormDataPart($fields));
         }
 
         $images = [];

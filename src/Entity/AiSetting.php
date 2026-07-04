@@ -110,6 +110,21 @@ class AiSetting implements AuditableInterface
         return (bool) $this->enabled;
     }
 
+    /**
+     * Whether the settings are complete enough to call the API. The chat
+     * completions features (meta, assistant) need a chat model; image
+     * generation picks its model from the imageModels list instead, so it
+     * passes $requireChatModel = false.
+     */
+    public function isConfigured(bool $requireChatModel = true): bool
+    {
+        if (!$this->isEnabled() || '' === (string) $this->apiUrl || '' === (string) $this->apiKey) {
+            return false;
+        }
+
+        return !$requireChatModel || '' !== (string) $this->model;
+    }
+
     public function setEnabled(?bool $enabled): self
     {
         $this->enabled = $enabled;

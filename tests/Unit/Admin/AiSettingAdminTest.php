@@ -102,4 +102,32 @@ class AiSettingAdminTest extends TestCase
         $this->assertFalse($config['imageGeneration']['available']);
         $this->assertSame([], $config['imageGeneration']['models']);
     }
+
+    public function testImageGenerationModelsHiddenWithoutPermission(): void
+    {
+        $config = $this->admin($this->enabledSetting(), false)->getConfig();
+
+        // The models list must not leak to users lacking the image permission.
+        $this->assertSame([], $config['imageGeneration']['models']);
+    }
+
+    public function testConfigSurvivesMissingSchema(): void
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willThrowException(new \RuntimeException('no such table: sulu_ai_settings'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $admin = new AiSettingAdmin(
+            $this->createMock(ViewBuilderFactoryInterface::class),
+            $this->createMock(SecurityCheckerInterface::class),
+            $entityManager
+        );
+
+        $config = $admin->getConfig();
+
+        $this->assertFalse($config['assistant']['available']);
+        $this->assertFalse($config['imageGeneration']['available']);
+        $this->assertSame([], $config['imageGeneration']['models']);
+    }
 }

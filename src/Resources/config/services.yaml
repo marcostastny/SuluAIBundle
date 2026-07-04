@@ -8,6 +8,7 @@ services:
             tags: ['sulu_ai.assistant_tool']
 
     Marcostastny\SuluAIBundle\Service\ContentTextFlattener: ~
+    Marcostastny\SuluAIBundle\Service\OpenAiClient: ~
     Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator: ~
     Marcostastny\SuluAIBundle\Service\PageContentExtractor: ~
 

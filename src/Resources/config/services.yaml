@@ -15,6 +15,7 @@ services:
         arguments:
             $viewBuilderFactory: '@sulu_admin.view_builder_factory'
             $securityChecker: '@sulu_security.security_checker'
+            $entityManager: '@doctrine.orm.entity_manager'
         tags:
             - { name: sulu.admin }
             - { name: sulu.context, context: admin }

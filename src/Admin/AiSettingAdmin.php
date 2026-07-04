@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Admin;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Sulu\Bundle\AdminBundle\Admin\Admin;
 use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItem;
@@ -23,7 +24,8 @@ class AiSettingAdmin extends Admin
 
     public function __construct(
         private ViewBuilderFactoryInterface $viewBuilderFactory,
-        private SecurityCheckerInterface $securityChecker
+        private SecurityCheckerInterface $securityChecker,
+        private EntityManagerInterface $entityManager
     ) {
     }
 
@@ -114,6 +116,33 @@ class AiSettingAdmin extends Admin
                         PermissionTypes::VIEW,
                     ],
                 ],
+            ],
+        ];
+    }
+
+    public function getConfigKey(): ?string
+    {
+        return 'sulu_ai_bundle';
+    }
+
+    /**
+     * @return mixed[]
+     */
+    public function getConfig(): ?array
+    {
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $configured = null !== $setting
+            && $setting->isEnabled()
+            && $setting->getApiUrl()
+            && $setting->getApiKey()
+            && $setting->getModel();
+
+        return [
+            'assistant' => [
+                'available' => (bool) $configured && $this->securityChecker->hasPermission(
+                    AiSetting::SECURITY_CONTEXT_ASSISTANT,
+                    PermissionTypes::VIEW
+                ),
             ],
         ];
     }

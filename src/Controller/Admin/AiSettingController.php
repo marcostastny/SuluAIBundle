@@ -50,6 +50,9 @@ class AiSettingController extends AbstractRestController implements SecuredContr
                 continue;
             }
             $imageModels[] = [
+                // Sulu's block field requires a "type" on every item; keep it so
+                // the settings form can render the saved models on reload.
+                'type' => 'model',
                 'label' => (string) ($model['label'] ?? $model['modelId']),
                 'modelId' => (string) $model['modelId'],
                 'supportsReference' => (bool) ($model['supportsReference'] ?? false),

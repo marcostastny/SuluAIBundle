@@ -93,6 +93,11 @@ class AiSettingAdmin extends Admin
                         PermissionTypes::VIEW,
                     ],
                 ],
+                'AI Assistant' => [
+                    AiSetting::SECURITY_CONTEXT_ASSISTANT => [
+                        PermissionTypes::VIEW,
+                    ],
+                ],
             ],
         ];
     }

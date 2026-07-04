@@ -43,6 +43,17 @@ services:
         arguments:
             $adminResources: '%sulu_search.admin_resources%'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\AdminIndexSearcher:
+        arguments:
+            $engine: '@cmsig_seal.engine.default'
+            $tokenStorage: '@security.token_storage'
+            $maskConverter: '@sulu_security.mask_converter'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\FormTitleSearcher:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $securityChecker: '@sulu_security.security_checker'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

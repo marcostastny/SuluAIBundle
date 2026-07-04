@@ -7,9 +7,11 @@ AI features for [Sulu](https://sulu.io/) 3.
 - A **Generate meta with AI** button on a page's **Meta / SEO** tab that sends the
   saved page's content to the API and fills the meta title, description and
   keywords.
-- A **Page Assistant**: a floating chat on a page's content tab that understands
-  the page and its template's content blocks, and edits the page via chat — every
-  change is shown as a diff and only applied to the open form after approval.
+- An **AI Assistant** available on every admin view: a floating chat that finds
+  content (pages, snippets, articles and forms) and opens the right edit view
+  after the user confirms with a click. On a page's content tab it additionally
+  understands the page and its template's content blocks and edits the page via
+  chat — every change is shown as a diff and only applied after approval.
 
 ![AI Settings page](docs/images/settings.png)
 
@@ -95,7 +97,7 @@ giving them access to the API key:
 |---|---|
 | `sulu_ai.settings` | **View/Edit** the settings page (API URL, key, model) |
 | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
-| `sulu_ai.assistant` | **View** to show and use the assistant chat on page edit forms |
+| `sulu_ai.assistant` | **View** to show and use the assistant chat (globally and on page edit forms) |
 
 Grant the relevant permissions to each role under *Settings → Roles*. The
 generate-meta button and the assistant only appear for users who have **View**
@@ -121,10 +123,22 @@ Open **Settings → AI Settings**, enter the API URL (e.g.
 The button is disabled until the page has been saved at least once (the backend
 reads the saved page content).
 
-### Page Assistant
+### AI Assistant
 
-1. Open a page's **Content** tab. Users with the **AI Assistant** permission
-   see a floating chat button in the bottom-right corner.
+Users with the **AI Assistant** permission see a floating chat button in the
+bottom-right corner of every admin view (as soon as AI is enabled in the
+settings).
+
+**Finding and opening content (all views):** ask for content in natural
+language — "I want to edit the table reservation form". The assistant searches
+pages, snippets, articles and forms (only content you may edit) and answers
+with a result card. Clicking **Open** navigates to the edit view — never
+automatically, and Sulu's unsaved-changes dialog still protects a dirty form.
+The conversation survives navigation; the trash icon in the header clears it.
+
+**Editing pages (content tab):**
+
+1. Open a page's **Content** tab.
 2. Ask questions ("What is this page about?") or request changes ("Rewrite the
    intro", "Add a text block about breakfast times", "Move the quote block to
    the top"). The assistant sees the current — including unsaved — form content
@@ -145,10 +159,16 @@ its content to plain text, calls the configured chat-completions endpoint, and
 returns `{title, description, keywords}` which the button writes into the SEO
 fields.
 
-**Page Assistant** posts the page's live form data + message history to
+**AI Assistant** posts the page's live form data + message history to
 `POST /admin/api/ai/assistant/chat`. The controller builds a system prompt from
 the template metadata, runs an OpenAI function-calling loop server-side, and
 validates every proposed edit operation against the template schema before it
 reaches the browser.
+
+Outside a page form the same endpoint runs in global mode: the agent may call
+a `search_content` tool (backed by Sulu's SEAL admin search index, filtered by
+the user's permissions, plus a Doctrine lookup for forms) and can only propose
+navigation targets that this tool actually returned — the browser then renders
+them as buttons and navigates via the admin router on click.
 
 In both cases the API key never leaves the server.

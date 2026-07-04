@@ -115,6 +115,9 @@ class AiSettingAdmin extends Admin
                     AiSetting::SECURITY_CONTEXT_ASSISTANT => [
                         PermissionTypes::VIEW,
                     ],
+                    AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION => [
+                        PermissionTypes::VIEW,
+                    ],
                 ],
             ],
         ];
@@ -137,12 +140,29 @@ class AiSettingAdmin extends Admin
             && $setting->getApiKey()
             && $setting->getModel();
 
+        $models = [];
+        foreach ($setting?->getImageModels() ?? [] as $model) {
+            $models[] = [
+                'label' => (string) ($model['label'] ?? ''),
+                'id' => (string) ($model['modelId'] ?? ''),
+                'supportsReference' => (bool) ($model['supportsReference'] ?? false),
+                'maxImages' => (int) ($model['maxImages'] ?? 1),
+            ];
+        }
+
         return [
             'assistant' => [
                 'available' => (bool) $configured && $this->securityChecker->hasPermission(
                     AiSetting::SECURITY_CONTEXT_ASSISTANT,
                     PermissionTypes::VIEW
                 ),
+            ],
+            'imageGeneration' => [
+                'available' => (bool) $configured && [] !== $models && $this->securityChecker->hasPermission(
+                    AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
+                    PermissionTypes::VIEW
+                ),
+                'models' => $models,
             ],
         ];
     }

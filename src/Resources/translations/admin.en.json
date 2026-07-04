@@ -24,5 +24,14 @@
     "sulu_ai.assistant_type_page": "Page",
     "sulu_ai.assistant_type_snippet": "Snippet",
     "sulu_ai.assistant_type_article": "Article",
-    "sulu_ai.assistant_type_form": "Form"
+    "sulu_ai.assistant_type_form": "Form",
+    "sulu_ai.image_style_prompt": "Company image style prompt",
+    "sulu_ai.image_style_prompt_info": "Always appended to every image prompt, e.g. brand look and tone.",
+    "sulu_ai.image_models": "Image models",
+    "sulu_ai.image_models_info": "Models offered in the image generator. The API URL and key above are reused.",
+    "sulu_ai.image_model": "Model",
+    "sulu_ai.image_model_label": "Label",
+    "sulu_ai.image_model_id": "Model ID",
+    "sulu_ai.image_model_supports_reference": "Supports reference images",
+    "sulu_ai.image_model_max_images": "Max images"
 }

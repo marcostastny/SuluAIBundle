@@ -24,5 +24,14 @@
     "sulu_ai.assistant_type_page": "Seite",
     "sulu_ai.assistant_type_snippet": "Snippet",
     "sulu_ai.assistant_type_article": "Artikel",
-    "sulu_ai.assistant_type_form": "Formular"
+    "sulu_ai.assistant_type_form": "Formular",
+    "sulu_ai.image_style_prompt": "Firmenweiter Bildstil-Prompt",
+    "sulu_ai.image_style_prompt_info": "Wird jedem Bild-Prompt automatisch angehängt, z. B. Markenlook und Stimmung.",
+    "sulu_ai.image_models": "Bildmodelle",
+    "sulu_ai.image_models_info": "Im Bildgenerator angebotene Modelle. Die API-URL und der Schlüssel oben werden wiederverwendet.",
+    "sulu_ai.image_model": "Modell",
+    "sulu_ai.image_model_label": "Bezeichnung",
+    "sulu_ai.image_model_id": "Modell-ID",
+    "sulu_ai.image_model_supports_reference": "Unterstützt Referenzbilder",
+    "sulu_ai.image_model_max_images": "Max. Bilder"
 }

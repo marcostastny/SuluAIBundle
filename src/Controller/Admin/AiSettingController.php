@@ -44,6 +44,23 @@ class AiSettingController extends AbstractRestController implements SecuredContr
         $setting->setModel($data['model'] ?? null);
         $setting->setEnabled((bool) ($data['enabled'] ?? false));
 
+        $imageModels = [];
+        foreach ((array) ($data['imageModels'] ?? []) as $model) {
+            if (!\is_array($model) || '' === (string) ($model['modelId'] ?? '')) {
+                continue;
+            }
+            $imageModels[] = [
+                'label' => (string) ($model['label'] ?? $model['modelId']),
+                'modelId' => (string) $model['modelId'],
+                'supportsReference' => (bool) ($model['supportsReference'] ?? false),
+                'maxImages' => \max(1, \min(4, (int) ($model['maxImages'] ?? 1))),
+            ];
+        }
+        $setting->setImageModels($imageModels);
+        $setting->setImageStylePrompt(
+            '' === (string) ($data['imageStylePrompt'] ?? '') ? null : (string) $data['imageStylePrompt']
+        );
+
         $this->entityManager->flush();
 
         return $this->handleView($this->view($setting));

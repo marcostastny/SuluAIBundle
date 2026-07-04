@@ -155,7 +155,7 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         ].join(' · ');
 
         return (
-            <div className={styles.overlay}>
+            <div className={styles.overlay} data-image-generator="true">
                 <div className={styles.panel}>
                     <button className={styles.closeButton} onClick={this.close} type="button">✕</button>
                     <h2 className={styles.title}>{translate('sulu_ai.image_generator_title')}</h2>

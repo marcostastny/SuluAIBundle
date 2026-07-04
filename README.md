@@ -1,12 +1,15 @@
 # SuluAIBundle
 
-AI-assisted SEO meta generation for [Sulu](https://sulu.io/) 3.
+AI features for [Sulu](https://sulu.io/) 3.
 
 - A **Settings** page (Settings → AI Settings) to configure an OpenAI-compatible
   API (base URL, model, API key, enabled toggle).
 - A **Generate meta with AI** button on a page's **Meta / SEO** tab that sends the
   saved page's content to the API and fills the meta title, description and
   keywords.
+- A **Page Assistant**: a floating chat on a page's content tab that understands
+  the page and its template's content blocks, and edits the page via chat — every
+  change is shown as a diff and only applied to the open form after approval.
 
 ![AI Settings page](docs/images/settings.png)
 
@@ -45,7 +48,18 @@ Update the schema (Sulu uses the admin kernel):
 bin/adminconsole doctrine:schema:update --force
 ```
 
-Import the admin JS in your `assets/admin/index.js` (or `app.js`) and rebuild:
+Register the admin JS package in `assets/admin/package.json` (the path must
+point into the installed bundle under `vendor/`):
+
+```json
+{
+    "dependencies": {
+        "sulu-ai-bundle": "file:../../vendor/marcostastny/sulu-ai-bundle/src/Resources/js"
+    }
+}
+```
+
+Import it in your `assets/admin/index.js` (or `app.js`) and rebuild:
 
 ```js
 import "sulu-ai-bundle";
@@ -53,6 +67,22 @@ import "sulu-ai-bundle";
 
 ```bash
 cd assets/admin && npm install && npm run build
+```
+
+> **Note on updates:** npm copies `file:` dependencies into `node_modules` and
+> pins the resolved path in `package-lock.json`. After updating the bundle (or
+> if the import ever points at a stale location), refresh it explicitly:
+>
+> ```bash
+> cd assets/admin
+> npm install sulu-ai-bundle@file:../../vendor/marcostastny/sulu-ai-bundle/src/Resources/js
+> npm run build
+> ```
+
+Finally clear the admin cache:
+
+```bash
+bin/adminconsole cache:clear
 ```
 
 ## Permissions
@@ -73,11 +103,16 @@ on the respective context, and the endpoints enforce the same permissions.
 
 ## Usage
 
-1. Open **Settings → AI Settings**, enter the API URL (e.g.
-   `https://api.openai.com/v1`), model (e.g. `gpt-4o-mini`) and API key, toggle
-   **Enabled**, and save.
-2. Open a page, **save** it, then open its **Meta / SEO** tab.
-3. Click **Generate meta with AI**. The title, description and keywords fields
+### AI Settings
+
+Open **Settings → AI Settings**, enter the API URL (e.g.
+`https://api.openai.com/v1`), model (e.g. `gpt-4o-mini`) and API key, toggle
+**Enabled**, and save. All AI features share this configuration.
+
+### Meta generation
+
+1. Open a page, **save** it, then open its **Meta / SEO** tab.
+2. Click **Generate meta with AI**. The title, description and keywords fields
    are filled from the page's content (in the current content language). Review
    and save.
 
@@ -86,26 +121,34 @@ on the respective context, and the endpoints enforce the same permissions.
 The button is disabled until the page has been saved at least once (the backend
 reads the saved page content).
 
-## Page Assistant
+### Page Assistant
 
-Users with the **AI Assistant** permission get a floating chat button on a
-page's content tab. The assistant knows the page's current (unsaved) form
-content and the template's block schema, answers questions about the page, and
-proposes edits — including adding, removing and reordering content blocks — as
-a diff. Approved changes are written into the open form; nothing is persisted
-until the user saves the page normally.
-
-The chat posts the page's live form data + message history to
-`POST /admin/api/ai/assistant/chat`. The controller builds a system prompt from
-the template metadata, runs an OpenAI function-calling loop server-side, and
-validates every proposed operation against the template schema before it
-reaches the browser. The API key never leaves the server.
+1. Open a page's **Content** tab. Users with the **AI Assistant** permission
+   see a floating chat button in the bottom-right corner.
+2. Ask questions ("What is this page about?") or request changes ("Rewrite the
+   intro", "Add a text block about breakfast times", "Move the quote block to
+   the top"). The assistant sees the current — including unsaved — form content
+   and the template's block schema.
+3. Requested changes appear as a **diff card** in the chat (old value / new
+   value, block insertions, removals and moves). Click **Apply** to write them
+   into the open form, or **Discard** to reject them.
+4. Applied changes are only in the form — review them and use Sulu's normal
+   **Save**/**Publish** to persist. If the form changed after a proposal was
+   made, applying it shows a conflict warning instead of corrupting the page.
 
 ## How it works
 
-The button posts the page id + locale to `POST /admin/api/ai/generate-meta`. The
-controller loads the saved page server-side (`PageRepositoryInterface` +
-`ContentManagerInterface`), flattens its content to plain text, calls the
-configured chat-completions endpoint, and returns `{title, description,
-keywords}` which the button writes into the SEO fields. The API key never leaves
-the server.
+**Meta generation** posts the page id + locale to
+`POST /admin/api/ai/generate-meta`. The controller loads the saved page
+server-side (`PageRepositoryInterface` + `ContentManagerInterface`), flattens
+its content to plain text, calls the configured chat-completions endpoint, and
+returns `{title, description, keywords}` which the button writes into the SEO
+fields.
+
+**Page Assistant** posts the page's live form data + message history to
+`POST /admin/api/ai/assistant/chat`. The controller builds a system prompt from
+the template metadata, runs an OpenAI function-calling loop server-side, and
+validates every proposed edit operation against the template schema before it
+reaches the browser.
+
+In both cases the API key never leaves the server.

@@ -46,9 +46,9 @@ class AssistantContextBuilderTest extends TestCase
 
     public function testBuildStripsNullValuesFromFormData(): void
     {
-        $result = $this->builder()->build('default', 'de', ['title' => 'Hotel', 'article' => null]);
+        $result = $this->builder()->build('default', 'de', ['title' => 'Hotel', 'subtitle' => null]);
 
-        $this->assertStringNotContainsString('article', $result['systemPrompt']);
+        $this->assertStringNotContainsString('subtitle', $result['systemPrompt']);
     }
 
     public function testBuildTruncatesVeryLongStrings(): void
@@ -58,6 +58,22 @@ class AssistantContextBuilderTest extends TestCase
 
         $this->assertStringNotContainsString($longText, $result['systemPrompt']);
         $this->assertStringContainsString('[truncated]', $result['systemPrompt']);
+    }
+
+    public function testBuildGlobalPromptDescribesSearchAndNavigation(): void
+    {
+        $prompt = $this->builder()->buildGlobalPrompt();
+
+        $this->assertStringContainsString('search_content', $prompt);
+        $this->assertStringContainsString('propose_navigation', $prompt);
+        $this->assertStringContainsString('NOT editing a page', $prompt);
+    }
+
+    public function testPagePromptContainsNavigationGuidance(): void
+    {
+        $built = $this->builder()->build('default', 'de', ['title' => 'T']);
+
+        $this->assertStringContainsString('propose_navigation', $built['systemPrompt']);
     }
 
     public function testUnknownTemplateThrows(): void

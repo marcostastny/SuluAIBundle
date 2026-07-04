@@ -6,6 +6,7 @@ namespace Marcostastny\SuluAIBundle\Tests\Unit\Service\Assistant;
 
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantToolInterface;
+use Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -38,9 +39,51 @@ class AssistantAgentTest extends TestCase
         ]));
     }
 
+    private NavigationTargetCollector $collector;
+
+    protected function setUp(): void
+    {
+        $this->collector = new NavigationTargetCollector();
+    }
+
     private function agent(MockHttpClient $client, ?AssistantToolInterface $tool = null): AssistantAgent
     {
-        return new AssistantAgent($client, new ToolRegistry($tool ? [$tool] : []));
+        return new AssistantAgent($client, new ToolRegistry($tool ? [$tool] : []), $this->collector);
+    }
+
+    private function collectingTool(): AssistantToolInterface
+    {
+        $collector = $this->collector;
+
+        return new class($collector) implements AssistantToolInterface {
+            public function __construct(private NavigationTargetCollector $collector)
+            {
+            }
+
+            public function getName(): string
+            {
+                return 'search_content';
+            }
+
+            public function getDefinition(): array
+            {
+                return ['type' => 'function', 'function' => ['name' => 'search_content', 'parameters' => ['type' => 'object', 'properties' => []]]];
+            }
+
+            public function execute(array $arguments): array
+            {
+                $this->collector->add([
+                    'type' => 'pages',
+                    'id' => '42',
+                    'locale' => 'de',
+                    'title' => 'Zimmer',
+                    'view' => 'sulu_page.page_edit_form',
+                    'attributes' => ['id' => '42', 'locale' => 'de', 'webspace' => 'kulm'],
+                ]);
+
+                return ['results' => [['type' => 'pages', 'id' => '42', 'locale' => 'de', 'title' => 'Zimmer']]];
+            }
+        };
     }
 
     /**
@@ -187,6 +230,103 @@ class AssistantAgentTest extends TestCase
         $this->assertSame([], $result['actions']);
         $this->assertNotSame('', $result['reply']);
         $this->assertSame(5, $client->getRequestsCount());
+    }
+
+    public function testProposeNavigationReturnsCollectedTargets(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('search_content', ['query' => 'zimmer']),
+            $this->toolCallResponse('propose_navigation', [
+                'message' => 'Open the Zimmer page',
+                'targets' => [['type' => 'pages', 'id' => '42', 'locale' => 'de']],
+            ], 'call_2'),
+        ]);
+
+        $result = $this->runAgent($this->agent($client, $this->collectingTool()));
+
+        $this->assertSame('Open the Zimmer page', $result['reply']);
+        $this->assertCount(1, $result['actions']);
+        $this->assertSame('navigate', $result['actions'][0]['type']);
+        $this->assertSame('sulu_page.page_edit_form', $result['actions'][0]['targets'][0]['view']);
+        $this->assertSame(
+            ['id' => '42', 'locale' => 'de', 'webspace' => 'kulm'],
+            $result['actions'][0]['targets'][0]['attributes']
+        );
+    }
+
+    public function testProposeNavigationWithUnknownTargetGetsOneCorrectiveRound(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_navigation', [
+                'message' => 'Open it',
+                'targets' => [['type' => 'pages', 'id' => '99', 'locale' => 'de']],
+            ]),
+            $this->toolCallResponse('propose_navigation', [
+                'message' => 'Open it',
+                'targets' => [['type' => 'pages', 'id' => '99', 'locale' => 'de']],
+            ], 'call_2'),
+        ]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertSame(2, $client->getRequestsCount());
+        $this->assertSame([], $result['actions']);
+        $this->assertNotSame('', $result['reply']);
+    }
+
+    public function testRunResetsCollectorFromPreviousRequest(): void
+    {
+        $this->collector->add([
+            'type' => 'pages',
+            'id' => '1',
+            'locale' => 'de',
+            'title' => 'Stale',
+            'view' => 'sulu_page.page_edit_form',
+            'attributes' => [],
+        ]);
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_navigation', [
+                'message' => 'Open it',
+                'targets' => [['type' => 'pages', 'id' => '1', 'locale' => 'de']],
+            ]),
+            $this->textResponse('Sorry.'),
+        ]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertSame([], $result['actions']);
+    }
+
+    public function testToolListOmitsProposeEditsWithoutValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->agent($client)->run('https://api.test/v1', 'key', 'gpt-test', 'system', [['role' => 'user', 'content' => 'hi']], null);
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertNotContains('propose_edits', $names);
+        $this->assertContains('propose_navigation', $names);
+    }
+
+    public function testToolListContainsProposeEditsWithValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->runAgent($this->agent($client));
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertContains('propose_edits', $names);
+        $this->assertContains('propose_navigation', $names);
     }
 
     public function testApiErrorSurfacesAsRuntimeException(): void

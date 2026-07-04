@@ -7,9 +7,9 @@ namespace Marcostastny\SuluAIBundle\Service\Assistant;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Runs the OpenAI-compatible function-calling loop for the page assistant.
- * Server tools from the ToolRegistry are executed in-loop; the propose_edits
- * tool is terminal and returned to the client as an action.
+ * Runs the OpenAI-compatible function-calling loop for the assistant.
+ * Server tools from the ToolRegistry are executed in-loop; propose_edits and
+ * propose_navigation are terminal and returned to the client as actions.
  */
 class AssistantAgent
 {
@@ -18,14 +18,16 @@ class AssistantAgent
     public function __construct(
         private HttpClientInterface $httpClient,
         private ToolRegistry $toolRegistry,
+        private NavigationTargetCollector $targetCollector,
     ) {
     }
 
     /**
      * @param list<array{role: string, content: string}> $messages
-     * @param callable(array<int, mixed>): list<string> $validateOps returns error strings, empty when valid
+     * @param (callable(array<int, mixed>): list<string>)|null $validateOps returns error strings, empty when
+     *                                                                      valid; null disables propose_edits
      *
-     * @return array{reply: string, actions: list<array{type: string, summary: string, ops: array<int, mixed>}>}
+     * @return array{reply: string, actions: list<array<string, mixed>>}
      */
     public function run(
         string $apiUrl,
@@ -33,11 +35,17 @@ class AssistantAgent
         string $model,
         string $systemPrompt,
         array $messages,
-        callable $validateOps
+        ?callable $validateOps
     ): array {
+        $this->targetCollector->reset();
+
         $conversation = [['role' => 'system', 'content' => $systemPrompt], ...$messages];
-        $tools = [$this->proposeEditsDefinition(), ...$this->toolRegistry->getDefinitions()];
+        $tools = [$this->proposeNavigationDefinition(), ...$this->toolRegistry->getDefinitions()];
+        if (null !== $validateOps) {
+            $tools = [$this->proposeEditsDefinition(), ...$tools];
+        }
         $proposalRetried = false;
+        $navigationRetried = false;
 
         for ($iteration = 0; $iteration < self::MAX_ITERATIONS; ++$iteration) {
             $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools);
@@ -54,7 +62,7 @@ class AssistantAgent
                 $arguments = \json_decode((string) ($toolCall['function']['arguments'] ?? '{}'), true);
                 $arguments = \is_array($arguments) ? $arguments : [];
 
-                if ('propose_edits' === $name) {
+                if ('propose_edits' === $name && null !== $validateOps) {
                     $ops = \is_array($arguments['ops'] ?? null) ? $arguments['ops'] : [];
                     $summary = (string) ($arguments['summary'] ?? '');
                     $errors = $validateOps($ops);
@@ -82,6 +90,58 @@ class AssistantAgent
                         'content' => (string) \json_encode([
                             'errors' => $errors,
                             'instruction' => 'The proposed operations are invalid. Fix them and call propose_edits again.',
+                        ]),
+                    ];
+
+                    continue;
+                }
+
+                if ('propose_navigation' === $name) {
+                    $rawTargets = \is_array($arguments['targets'] ?? null) ? $arguments['targets'] : [];
+                    $navigationMessage = (string) ($arguments['message'] ?? '');
+
+                    $targets = [];
+                    $errors = [];
+                    foreach ($rawTargets as $index => $rawTarget) {
+                        $type = (string) ($rawTarget['type'] ?? '');
+                        $id = (string) ($rawTarget['id'] ?? '');
+                        $targetLocale = (string) ($rawTarget['locale'] ?? '');
+                        $known = $this->targetCollector->get($type, $id, $targetLocale);
+                        if (null === $known) {
+                            $errors[] = \sprintf('target %d: %s:%s:%s was not returned by search_content.', $index, $type, $id, $targetLocale);
+
+                            continue;
+                        }
+                        $targets[] = $known;
+                    }
+
+                    if ([] === $rawTargets) {
+                        $errors[] = 'targets must not be empty.';
+                    }
+
+                    if ([] === $errors) {
+                        $reply = \trim((string) ($message['content'] ?? ''));
+
+                        return [
+                            'reply' => '' !== $reply ? $reply : $navigationMessage,
+                            'actions' => [['type' => 'navigate', 'message' => $navigationMessage, 'targets' => $targets]],
+                        ];
+                    }
+
+                    if ($navigationRetried) {
+                        return [
+                            'reply' => 'I could not resolve the content you asked about. Please try rephrasing your request.',
+                            'actions' => [],
+                        ];
+                    }
+
+                    $navigationRetried = true;
+                    $conversation[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => (string) ($toolCall['id'] ?? ''),
+                        'content' => (string) \json_encode([
+                            'errors' => $errors,
+                            'instruction' => 'Only propose targets exactly as returned by search_content in this conversation turn. Call search_content first if needed.',
                         ]),
                     ];
 
@@ -142,6 +202,43 @@ class AssistantAgent
         }
 
         return $message;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proposeNavigationDefinition(): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => 'propose_navigation',
+                'description' => 'Offer the user to open one or more content items found via search_content. The user has to confirm with a click - nothing opens automatically. Pass type, id and locale exactly as returned by search_content.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'message' => [
+                            'type' => 'string',
+                            'description' => 'One sentence describing what will be opened, in the user\'s language.',
+                        ],
+                        'targets' => [
+                            'type' => 'array',
+                            'description' => 'The content items the user may open.',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string'],
+                                    'id' => ['type' => 'string'],
+                                    'locale' => ['type' => 'string'],
+                                ],
+                                'required' => ['type', 'id', 'locale'],
+                            ],
+                        ],
+                    ],
+                    'required' => ['message', 'targets'],
+                ],
+            ],
+        ];
     }
 
     /**

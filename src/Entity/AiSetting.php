@@ -21,6 +21,7 @@ class AiSetting implements AuditableInterface
     public const SECURITY_CONTEXT = 'sulu_ai.settings';
     public const SECURITY_CONTEXT_GENERATION = 'sulu_ai.meta_generation';
     public const SECURITY_CONTEXT_ASSISTANT = 'sulu_ai.assistant';
+    public const SECURITY_CONTEXT_IMAGE_GENERATION = 'sulu_ai.image_generation';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -43,6 +44,17 @@ class AiSetting implements AuditableInterface
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Serializer\Expose]
     private ?bool $enabled = false;
+
+    /**
+     * @var array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Serializer\Expose]
+    private ?array $imageModels = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $imageStylePrompt = null;
 
     public function __construct()
     {
@@ -101,6 +113,36 @@ class AiSetting implements AuditableInterface
     public function setEnabled(?bool $enabled): self
     {
         $this->enabled = $enabled;
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>
+     */
+    public function getImageModels(): array
+    {
+        return $this->imageModels ?? [];
+    }
+
+    /**
+     * @param array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>|null $imageModels
+     */
+    public function setImageModels(?array $imageModels): self
+    {
+        $this->imageModels = $imageModels;
+
+        return $this;
+    }
+
+    public function getImageStylePrompt(): ?string
+    {
+        return $this->imageStylePrompt;
+    }
+
+    public function setImageStylePrompt(?string $imageStylePrompt): self
+    {
+        $this->imageStylePrompt = $imageStylePrompt;
 
         return $this;
     }

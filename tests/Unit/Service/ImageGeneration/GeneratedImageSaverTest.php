@@ -72,4 +72,13 @@ class GeneratedImageSaverTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $saver->save(['b64' => null, 'url' => null], 3, 'title', 'de', 7);
     }
+
+    public function testRejectsNonHttpUrl(): void
+    {
+        $saver = new GeneratedImageSaver($this->createMock(MediaManagerInterface::class), new MockHttpClient());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('http(s)');
+        $saver->save(['b64' => null, 'url' => 'file:///etc/passwd'], 3, 'title', 'de', 7);
+    }
 }

@@ -46,6 +46,10 @@ export function snapshotBlockTypes(data, ops) {
 export default function applyOps(resourceFormStore, ops, baseline = {}) {
     const data = toJS(resourceFormStore.data);
     const blockChanges = {};
+    // Working copy of the proposal-time block types, spliced by the same
+    // structural ops as the block array so a setBlockField's index still lines
+    // up with the block it targeted (a static snapshot would not).
+    const baselineWork = {};
 
     const getBlocks = (property) => {
         if (!blockChanges[property]) {
@@ -53,6 +57,14 @@ export default function applyOps(resourceFormStore, ops, baseline = {}) {
         }
 
         return blockChanges[property];
+    };
+
+    const getBaseline = (property) => {
+        if (!(property in baselineWork)) {
+            baselineWork[property] = Array.isArray(baseline[property]) ? [...baseline[property]] : null;
+        }
+
+        return baselineWork[property];
     };
 
     const scalarChanges = [];
@@ -72,7 +84,8 @@ export default function applyOps(resourceFormStore, ops, baseline = {}) {
                 if (!blocks[index]) {
                     throw new ApplyConflictError('Block ' + index + ' of "' + property + '" no longer exists.');
                 }
-                const expectedType = baseline[property] ? baseline[property][index] : undefined;
+                const baseTypes = getBaseline(property);
+                const expectedType = baseTypes ? baseTypes[index] : undefined;
                 if (expectedType !== undefined && (blocks[index].type || '') !== expectedType) {
                     throw new ApplyConflictError(
                         'Block ' + index + ' of "' + property + '" changed since the proposal was made.'
@@ -88,6 +101,10 @@ export default function applyOps(resourceFormStore, ops, baseline = {}) {
                     throw new ApplyConflictError('Insert position ' + op.index + ' is out of range.');
                 }
                 blocks.splice(op.index, 0, op.block);
+                const insBaseline = getBaseline(property);
+                if (insBaseline) {
+                    insBaseline.splice(op.index, 0, (op.block && op.block.type) || '');
+                }
                 break;
             }
             case 'removeBlock': {
@@ -97,6 +114,10 @@ export default function applyOps(resourceFormStore, ops, baseline = {}) {
                     throw new ApplyConflictError('Block ' + op.index + ' of "' + property + '" no longer exists.');
                 }
                 blocks.splice(op.index, 1);
+                const remBaseline = getBaseline(property);
+                if (remBaseline) {
+                    remBaseline.splice(op.index, 1);
+                }
                 break;
             }
             case 'moveBlock': {
@@ -107,6 +128,11 @@ export default function applyOps(resourceFormStore, ops, baseline = {}) {
                 }
                 const [moved] = blocks.splice(op.from, 1);
                 blocks.splice(op.to, 0, moved);
+                const movBaseline = getBaseline(property);
+                if (movBaseline) {
+                    const [movedType] = movBaseline.splice(op.from, 1);
+                    movBaseline.splice(op.to, 0, movedType);
+                }
                 break;
             }
             default:

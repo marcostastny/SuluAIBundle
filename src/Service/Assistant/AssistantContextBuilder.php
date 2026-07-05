@@ -128,9 +128,14 @@ class AssistantContextBuilder
     private function compact(mixed $value): mixed
     {
         if (\is_array($value)) {
+            // Preserve list indices: dropping null entries from a sequential
+            // array (e.g. block lists) would renumber it and shift the block
+            // positions the model reasons about. Only prune nulls from
+            // associative arrays.
+            $isList = \array_is_list($value);
             $result = [];
             foreach ($value as $key => $item) {
-                if (null === $item) {
+                if (null === $item && !$isList) {
                     continue;
                 }
                 $result[$key] = $this->compact($item);

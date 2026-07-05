@@ -47,7 +47,7 @@ class AssistantController
             return new JsonResponse(['message' => 'Missing messages.'], 400);
         }
 
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
         if (!$setting || !$setting->isConfigured()) {
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }

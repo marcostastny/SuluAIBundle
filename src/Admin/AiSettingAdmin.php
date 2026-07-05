@@ -134,7 +134,7 @@ class AiSettingAdmin extends Admin
     public function getConfig(): ?array
     {
         try {
-            $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+            $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
         } catch (\Throwable) {
             // The settings table/columns may not exist yet (bundle installed but
             // schema not updated). getConfig() feeds the shared /admin/config

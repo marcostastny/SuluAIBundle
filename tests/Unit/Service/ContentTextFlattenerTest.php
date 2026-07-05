@@ -38,4 +38,20 @@ class ContentTextFlattenerTest extends TestCase
         $result = $flattener->flatten(['body' => str_repeat('a', 100)], 10);
         $this->assertSame(10, mb_strlen($result));
     }
+
+    public function testDeepNestingIsBoundedAndDoesNotRecurseUnbounded(): void
+    {
+        // Nest far beyond the depth guard; must return without exhausting the
+        // stack, and the too-deep leaf must not be collected.
+        $node = ['deep-leaf'];
+        for ($i = 0; $i < 500; ++$i) {
+            $node = ['child' => $node];
+        }
+        $node['title'] = 'shallow-leaf';
+
+        $result = (new ContentTextFlattener())->flatten($node);
+
+        $this->assertStringContainsString('shallow-leaf', $result);
+        $this->assertStringNotContainsString('deep-leaf', $result);
+    }
 }

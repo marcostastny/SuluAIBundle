@@ -35,17 +35,23 @@ class NavigationTargetResolver
         $view = (string) $route['name'];
         $resultToRouteName = \is_array($route['resultToRouteName'] ?? null) ? $route['resultToRouteName'] : [];
         foreach ($resultToRouteName as $documentPath => $placeholder) {
-            $view = \str_replace(
-                '{' . $placeholder . '}',
-                (string) $this->extract($document, (string) $documentPath),
-                $view
-            );
+            $value = $this->extract($document, (string) $documentPath);
+            if (null === $value) {
+                // A required piece of the view name is missing — the target
+                // would open a broken route, so drop it rather than offer it.
+                return null;
+            }
+            $view = \str_replace('{' . $placeholder . '}', (string) $value, $view);
         }
 
         $attributes = [];
         $resultToRoute = \is_array($route['resultToRoute'] ?? null) ? $route['resultToRoute'] : [];
         foreach ($resultToRoute as $documentPath => $attribute) {
-            $attributes[$attribute] = $this->extract($document, (string) $documentPath);
+            $value = $this->extract($document, (string) $documentPath);
+            if (null === $value) {
+                return null;
+            }
+            $attributes[$attribute] = $value;
         }
 
         return ['view' => $view, 'attributes' => $attributes];

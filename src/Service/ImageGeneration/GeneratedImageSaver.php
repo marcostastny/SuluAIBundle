@@ -81,10 +81,44 @@ class GeneratedImageSaver
         }
 
         if (!empty($payload['url'])) {
-            return $this->httpClient->request('GET', (string) $payload['url'])->getContent();
+            return $this->download((string) $payload['url']);
         }
 
         throw new \RuntimeException('Generated image payload had neither base64 data nor a url.');
+    }
+
+    /**
+     * Fetches an image URL returned by the images API with defensive bounds:
+     * http(s) only, capped redirects and duration, and a hard size limit read
+     * by streaming so a hostile/huge response cannot exhaust memory.
+     */
+    private function download(string $url): string
+    {
+        $scheme = \strtolower((string) \parse_url($url, \PHP_URL_SCHEME));
+        if (!\in_array($scheme, ['http', 'https'], true)) {
+            throw new \RuntimeException('Generated image url must be http(s).');
+        }
+
+        $maxBytes = 25 * 1024 * 1024;
+        $response = $this->httpClient->request('GET', $url, [
+            'max_redirects' => 3,
+            'timeout' => 10,
+            'max_duration' => 30,
+        ]);
+
+        if (200 !== $response->getStatusCode()) {
+            throw new \RuntimeException(\sprintf('Fetching the generated image url returned status %d.', $response->getStatusCode()));
+        }
+
+        $bytes = '';
+        foreach ($this->httpClient->stream($response) as $chunk) {
+            $bytes .= $chunk->getContent();
+            if (\strlen($bytes) > $maxBytes) {
+                throw new \RuntimeException('Generated image exceeds the maximum allowed size.');
+            }
+        }
+
+        return $bytes;
     }
 
     private function fileName(string $title): string

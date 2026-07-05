@@ -1,26 +1,11 @@
 // @flow
-import {action, computed, observable, toJS} from 'mobx';
+import {action, observable, toJS} from 'mobx';
 import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
 import {snapshotBlockTypes} from '../utils/applyOps';
 import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
-
-/**
- * Identifies the page a proposal was made against, so a diff card cannot be
- * applied after the user navigates to a different page/locale.
- */
-export function buildContextKey(context) {
-    if (!context || !context.resourceFormStore) {
-        return null;
-    }
-    const store = context.resourceFormStore;
-    const locale = store.locale ? store.locale.get() : '';
-    const webspace = context.router && context.router.attributes ? context.router.attributes.webspace : '';
-
-    return [context.type, store.id, locale, webspace].join('|');
-}
 
 class AssistantContextStore {
     @observable.ref context = null;
@@ -37,8 +22,8 @@ class AssistantContextStore {
         this.panelOpen = !this.panelOpen;
     }
 
-    @computed get currentContextKey() {
-        return buildContextKey(this.context);
+    get currentStore() {
+        return this.context ? this.context.resourceFormStore : null;
     }
 
     @action setContext(context) {
@@ -64,9 +49,10 @@ class AssistantContextStore {
         const context = this.context;
         const resourceFormStore = context ? context.resourceFormStore : null;
         const formData = resourceFormStore ? toJS(resourceFormStore.data) : {};
-        // Capture the page identity and block layout now, so an approved
-        // proposal is bound to the page and blocks it was generated against.
-        const contextKey = buildContextKey(context);
+        // Bind the proposal to this exact form-store instance and capture the
+        // block layout now, so an approved edit can only be applied to the page
+        // it was generated against (the store instance changes on navigation).
+        const store = resourceFormStore;
 
         this.messages.push({role: 'user', content: text.trim(), actions: [], applied: false, discarded: false});
         this.loading = true;
@@ -91,7 +77,7 @@ class AssistantContextStore {
                 responseAction.type === 'proposeEdits'
                     ? {
                         ...responseAction,
-                        contextKey,
+                        store,
                         baseline: snapshotBlockTypes(formData, responseAction.ops || []),
                     }
                     : responseAction

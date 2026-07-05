@@ -25,14 +25,14 @@ class AiSettingController extends AbstractRestController implements SecuredContr
 
     public function getAction(): Response
     {
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
 
         return $this->handleView($this->view($setting ?: new AiSetting()));
     }
 
     public function putAction(Request $request): Response
     {
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
         if (!$setting) {
             $setting = new AiSetting();
             $this->entityManager->persist($setting);
@@ -40,9 +40,14 @@ class AiSettingController extends AbstractRestController implements SecuredContr
 
         $data = $request->request->all();
         $setting->setApiUrl($data['apiUrl'] ?? null);
-        $setting->setApiKey($data['apiKey'] ?? null);
         $setting->setModel($data['model'] ?? null);
         $setting->setEnabled((bool) ($data['enabled'] ?? false));
+
+        // The key is write-only: the form never receives it, so an empty submit
+        // means "unchanged". Only overwrite when a new non-empty value is sent.
+        if (\array_key_exists('apiKey', $data) && '' !== (string) $data['apiKey']) {
+            $setting->setApiKey((string) $data['apiKey']);
+        }
 
         // Only touch the image fields when the payload carries them, so an
         // old-shape PUT (stale admin bundle, or an external script) can't wipe

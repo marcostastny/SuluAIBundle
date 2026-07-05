@@ -33,8 +33,9 @@ class AiSetting implements AuditableInterface
     #[Serializer\Expose]
     private ?string $apiUrl = null;
 
+    // Not exposed: the raw key must never be serialized back to the browser.
+    // The form reads apiKeySet (below) to know whether one is stored.
     #[ORM\Column(type: 'string', nullable: true)]
-    #[Serializer\Expose]
     private ?string $apiKey = null;
 
     #[ORM\Column(type: 'string', nullable: true)]
@@ -84,6 +85,18 @@ class AiSetting implements AuditableInterface
     public function getApiKey(): ?string
     {
         return $this->apiKey;
+    }
+
+    /**
+     * Write-only surrogate: lets the admin form show whether a key is stored
+     * without ever sending the secret to the browser.
+     */
+    #[Serializer\VirtualProperty]
+    #[Serializer\SerializedName('apiKeySet')]
+    #[Serializer\Expose]
+    public function hasApiKey(): bool
+    {
+        return '' !== (string) $this->apiKey;
     }
 
     public function setApiKey(?string $apiKey): self

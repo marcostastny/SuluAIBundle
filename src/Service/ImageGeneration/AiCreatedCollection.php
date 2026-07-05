@@ -25,13 +25,24 @@ class AiCreatedCollection
             return (int) $collection->getId();
         }
 
-        $created = $this->collectionManager->save([
-            'key' => self::KEY,
-            'title' => 'AI Created',
-            'locale' => $locale,
-            'type' => ['id' => 1],
-        ], $userId);
+        try {
+            $created = $this->collectionManager->save([
+                'key' => self::KEY,
+                'title' => 'AI Created',
+                'locale' => $locale,
+                'type' => ['id' => 1],
+            ], $userId);
 
-        return (int) $created->getId();
+            return (int) $created->getId();
+        } catch (\Throwable $e) {
+            // A concurrent request may have created it between the check and the
+            // save; re-read by key before surfacing the error.
+            $existing = $this->collectionManager->getByKey(self::KEY, $locale);
+            if (null !== $existing) {
+                return (int) $existing->getId();
+            }
+
+            throw $e;
+        }
     }
 }

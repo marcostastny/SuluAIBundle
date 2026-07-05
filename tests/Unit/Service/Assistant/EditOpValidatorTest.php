@@ -106,6 +106,44 @@ class EditOpValidatorTest extends TestCase
         $this->assertSame([], $errors);
     }
 
+    public function testSetRejectsScalarIntoComplexSelectionField(): void
+    {
+        $schema = ['fields' => [
+            'image' => ['type' => 'media_selection', 'required' => false],
+        ]];
+
+        $errors = $this->validator->validate(
+            [['op' => 'set', 'path' => '/image', 'value' => 'sunset']],
+            $schema,
+            []
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('cannot edit', $errors[0]);
+    }
+
+    public function testInsertBlockRejectsScalarIntoComplexSubField(): void
+    {
+        $schema = ['fields' => [
+            'content' => [
+                'type' => 'block',
+                'required' => false,
+                'blockTypes' => [
+                    'gallery' => ['fields' => ['images' => ['type' => 'media_selection']]],
+                ],
+            ],
+        ]];
+
+        $errors = $this->validator->validate(
+            [['op' => 'insertBlock', 'path' => '/content', 'index' => 0, 'block' => ['type' => 'gallery', 'images' => 'x']]],
+            $schema,
+            ['content' => []]
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('cannot set', $errors[0]);
+    }
+
     public function testInsertRaisesTheValidIndexRangeForLaterOps(): void
     {
         // formData has 2 blocks; after the insert, index 2 is a valid target.

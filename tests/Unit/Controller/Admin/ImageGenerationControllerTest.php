@@ -137,12 +137,15 @@ class ImageGenerationControllerTest extends TestCase
             function ($apiUrl, $apiKey, $modelId, $prompt, $size, $count) use (&$capturedCount): array {
                 $capturedCount = $count;
 
-                return [];
+                return [['b64' => 'AAA', 'url' => null]];
             }
         );
 
         $collection = $this->createMock(AiCreatedCollection::class);
         $collection->method('ensure')->willReturn(3);
+
+        $saver = $this->createMock(GeneratedImageSaver::class);
+        $saver->method('save')->willReturn(['id' => 1, 'thumbnailUrl' => '/t.jpg', 'title' => 'a cat']);
 
         $setting = new AiSetting();
         $setting->setEnabled(true);
@@ -152,7 +155,7 @@ class ImageGenerationControllerTest extends TestCase
             ['label' => 'Capped', 'modelId' => 'gpt-image-2', 'supportsReference' => false, 'maxImages' => 1],
         ]);
 
-        $response = $this->controller($setting, $generator, $collection)->postAction($this->request([
+        $response = $this->controller($setting, $generator, $collection, $saver)->postAction($this->request([
             'modelId' => 'gpt-image-2',
             'prompt' => 'a cat',
             'count' => 4,
@@ -160,6 +163,39 @@ class ImageGenerationControllerTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(1, $capturedCount, 'count must be clamped to the model\'s maxImages');
+    }
+
+    public function testPartialSaveReturnsSavedImagesWithMessage(): void
+    {
+        $generator = $this->createMock(OpenAiImageGenerator::class);
+        $generator->method('generate')->willReturn([
+            ['b64' => 'AAA', 'url' => null],
+            ['b64' => 'BBB', 'url' => null],
+        ]);
+
+        $collection = $this->createMock(AiCreatedCollection::class);
+        $collection->method('ensure')->willReturn(3);
+
+        $calls = 0;
+        $saver = $this->createMock(GeneratedImageSaver::class);
+        $saver->method('save')->willReturnCallback(function () use (&$calls): array {
+            if (2 === ++$calls) {
+                throw new \RuntimeException('disk full');
+            }
+
+            return ['id' => 10, 'thumbnailUrl' => '/t.jpg', 'title' => 'a cat'];
+        });
+
+        $response = $this->controller($this->setting(), $generator, $collection, $saver)->postAction($this->request([
+            'modelId' => 'gpt-image-2',
+            'prompt' => 'a cat',
+            'count' => 2,
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $decoded = \json_decode((string) $response->getContent(), true);
+        $this->assertCount(1, $decoded['images'], 'the saved image id is still returned');
+        $this->assertArrayHasKey('message', $decoded, 'a partial-failure note is included');
     }
 
     public function testGenerationFailureReturns502(): void

@@ -20,6 +20,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 class ImageGenerationController
 {
     private const MAX_COUNT = 4;
+    private const MAX_REFERENCES = 4;
+    private const MAX_REFERENCE_BYTES = 10 * 1024 * 1024;
 
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -48,7 +50,7 @@ class ImageGenerationController
             return new JsonResponse(['message' => 'A model and a prompt are required.'], 400);
         }
 
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
         // Image generation uses its own imageModels list, not the chat model.
         if (!$setting || !$setting->isConfigured(false)) {
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
@@ -83,10 +85,12 @@ class ImageGenerationController
             $setting->getImageStylePrompt()
         );
         $size = $this->promptBuilder->buildSize(
-            isset($data['format']) ? (string) $data['format'] : null
+            isset($data['format']) ? (string) $data['format'] : null,
+            $modelId
         );
         $quality = $this->promptBuilder->buildQuality(
-            isset($data['resolution']) ? (string) $data['resolution'] : null
+            isset($data['resolution']) ? (string) $data['resolution'] : null,
+            $modelId
         );
 
         try {
@@ -103,16 +107,33 @@ class ImageGenerationController
 
             $userId = $this->userId();
             $collectionId = $this->aiCreatedCollection->ensure($locale, $userId);
-
-            $images = [];
-            foreach ($rawImages as $rawImage) {
-                $images[] = $this->imageSaver->save($rawImage, $collectionId, $prompt, $locale, $userId);
-            }
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'Image generation failed: ' . $e->getMessage()], 502);
         }
 
-        return new JsonResponse(['images' => $images]);
+        // Save each image independently: a failure on one must not discard the
+        // ids of images already stored (the client needs them, and they are
+        // otherwise orphaned in the "AI Created" collection).
+        $images = [];
+        $saveError = null;
+        foreach ($rawImages as $rawImage) {
+            try {
+                $images[] = $this->imageSaver->save($rawImage, $collectionId, $prompt, $locale, $userId);
+            } catch (\Throwable $e) {
+                $saveError = $e->getMessage();
+            }
+        }
+
+        if ([] === $images) {
+            return new JsonResponse(['message' => 'Image generation failed: ' . ($saveError ?? 'no images produced')], 502);
+        }
+
+        $response = ['images' => $images];
+        if (null !== $saveError) {
+            $response['message'] = 'Some images could not be saved: ' . $saveError;
+        }
+
+        return new JsonResponse($response);
     }
 
     /**
@@ -124,16 +145,23 @@ class ImageGenerationController
     {
         $result = [];
         foreach ($references as $reference) {
+            if (\count($result) >= self::MAX_REFERENCES) {
+                break;
+            }
             if (!\is_array($reference) || empty($reference['data'])) {
                 continue;
             }
             $decoded = \base64_decode((string) $reference['data'], true);
-            if (false === $decoded) {
+            if (false === $decoded || \strlen($decoded) > self::MAX_REFERENCE_BYTES) {
+                continue;
+            }
+            $contentType = (string) ($reference['contentType'] ?? 'image/png');
+            if (!\str_starts_with($contentType, 'image/')) {
                 continue;
             }
             $result[] = [
                 'filename' => (string) ($reference['filename'] ?? 'reference.png'),
-                'contentType' => (string) ($reference['contentType'] ?? 'image/png'),
+                'contentType' => $contentType,
                 'data' => $decoded,
             ];
         }

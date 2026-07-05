@@ -97,7 +97,12 @@ class AssistantWindow extends React.Component {
                     >
                         <Icon name="su-trash-alt" />
                     </button>
-                    <button className={styles.closeButton} onClick={this.handleToggle} type="button">
+                    <button
+                        aria-label={translate('sulu_admin.close')}
+                        className={styles.closeButton}
+                        onClick={this.handleToggle}
+                        type="button"
+                    >
                         <Icon name="su-times" />
                     </button>
                 </div>

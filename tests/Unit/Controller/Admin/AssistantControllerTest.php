@@ -14,13 +14,15 @@ use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use PHPUnit\Framework\TestCase;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 class AssistantControllerTest extends TestCase
 {
     private function controller(
         ?AiSetting $setting,
         ?AssistantContextBuilder $contextBuilder = null,
-        ?AssistantAgent $agent = null
+        ?AssistantAgent $agent = null,
+        ?SecurityCheckerInterface $securityChecker = null
     ): AssistantController {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
@@ -32,7 +34,7 @@ class AssistantControllerTest extends TestCase
             $contextBuilder ?? $this->createMock(AssistantContextBuilder::class),
             $agent ?? $this->createMock(AssistantAgent::class),
             new EditOpValidator(),
-            $this->createMock(SecurityCheckerInterface::class)
+            $securityChecker ?? $this->createMock(SecurityCheckerInterface::class)
         );
     }
 
@@ -53,6 +55,17 @@ class AssistantControllerTest extends TestCase
     private function jsonRequest(array $payload): Request
     {
         return new Request(content: (string) \json_encode($payload));
+    }
+
+    public function testDeniedWithoutPermission(): void
+    {
+        $securityChecker = $this->createMock(SecurityCheckerInterface::class);
+        $securityChecker->method('checkPermission')->willThrowException(new AccessDeniedException());
+
+        $this->expectException(AccessDeniedException::class);
+
+        $this->controller($this->enabledSetting(), null, null, $securityChecker)
+            ->postAction($this->jsonRequest(['messages' => [['role' => 'user', 'content' => 'hi']]]));
     }
 
     public function testMissingMessagesReturn400(): void

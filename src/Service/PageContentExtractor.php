@@ -21,7 +21,7 @@ class PageContentExtractor
     }
 
     /**
-     * @return array{title: string, text: string}
+     * @return array{title: string, text: string, webspace: string}
      */
     public function extract(string $id, string $locale): array
     {
@@ -41,6 +41,7 @@ class PageContentExtractor
         return [
             'title' => (string) ($normalized['title'] ?? ''),
             'text' => $this->flattener->flatten($normalized),
+            'webspace' => (string) ($normalized['webspaceKey'] ?? ''),
         ];
     }
 }

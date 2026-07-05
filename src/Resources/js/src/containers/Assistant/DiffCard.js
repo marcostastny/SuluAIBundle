@@ -38,9 +38,10 @@ class DiffCard extends React.Component {
             return;
         }
 
-        // Refuse to apply a proposal made against a different page/locale — the
-        // chat (and its diff cards) survive navigation between forms.
-        if (proposeAction.contextKey && proposeAction.contextKey !== assistantContextStore.currentContextKey) {
+        // Refuse to apply a proposal made against a different form — the chat
+        // (and its diff cards) survive navigation between pages, and each form
+        // gets a fresh store instance.
+        if (proposeAction.store && proposeAction.store !== context.resourceFormStore) {
             this.pushConflict();
 
             return;

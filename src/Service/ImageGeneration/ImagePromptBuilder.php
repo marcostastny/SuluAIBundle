@@ -29,23 +29,31 @@ class ImagePromptBuilder
     ];
 
     /**
-     * @var array<string, string> format => size
+     * Per-family size maps keyed by orientation. Different model families accept
+     * different sizes, so the size is chosen for the selected model's family
+     * rather than assuming gpt-image everywhere.
      *
-     * gpt-image models accept 1024x1024, 1536x1024 (landscape), 1024x1536
-     * (portrait) or auto. Map every format onto the closest supported size.
+     * @var array<string, array<string, string>>
      */
-    public const SIZES = [
-        '1:1' => '1024x1024',
-        '16:9' => '1536x1024',
-        '9:16' => '1024x1536',
-        '4:3' => '1536x1024',
-        '3:2' => '1536x1024',
+    private const FAMILY_SIZES = [
+        'gpt-image' => ['square' => '1024x1024', 'landscape' => '1536x1024', 'portrait' => '1024x1536'],
+        'dalle3' => ['square' => '1024x1024', 'landscape' => '1792x1024', 'portrait' => '1024x1792'],
+        'dalle2' => ['square' => '1024x1024', 'landscape' => '1024x1024', 'portrait' => '1024x1024'],
+        // Unknown/other providers: the universally accepted square only.
+        'generic' => ['square' => '1024x1024', 'landscape' => '1024x1024', 'portrait' => '1024x1024'],
     ];
 
-    /** @var array<string, string> resolution option => images-API quality */
-    public const QUALITIES = [
-        'standard' => 'medium',
-        'high' => 'high',
+    /**
+     * Per-family quality maps (resolution option => API quality). A null entry
+     * means the family has no quality parameter, so none is sent.
+     *
+     * @var array<string, array<string, string>|null>
+     */
+    private const FAMILY_QUALITIES = [
+        'gpt-image' => ['standard' => 'medium', 'high' => 'high'],
+        'dalle3' => ['standard' => 'standard', 'high' => 'hd'],
+        'dalle2' => null,
+        'generic' => null,
     ];
 
     public function buildPrompt(
@@ -69,13 +77,50 @@ class ImagePromptBuilder
         return \implode("\n", \array_filter($parts, static fn (string $p): bool => '' !== $p));
     }
 
-    public function buildSize(?string $format): string
+    public function buildSize(?string $format, string $modelId): string
     {
-        return self::SIZES[$format ?? ''] ?? self::SIZES['1:1'];
+        $sizes = self::FAMILY_SIZES[$this->family($modelId)];
+
+        return $sizes[$this->orientation($format)];
     }
 
-    public function buildQuality(?string $resolution): string
+    public function buildQuality(?string $resolution, string $modelId): ?string
     {
-        return self::QUALITIES[$resolution ?? ''] ?? self::QUALITIES['standard'];
+        $qualities = self::FAMILY_QUALITIES[$this->family($modelId)];
+        if (null === $qualities) {
+            return null;
+        }
+
+        return $qualities[$resolution ?? ''] ?? $qualities['standard'];
+    }
+
+    private function orientation(?string $format): string
+    {
+        return match ($format) {
+            '9:16' => 'portrait',
+            '16:9', '4:3', '3:2' => 'landscape',
+            default => 'square',
+        };
+    }
+
+    /**
+     * Infers the model family from the configured model id. LiteLLM route names
+     * often carry a provider prefix (e.g. "azure/dall-e-3"), so substring checks
+     * are used; unrecognised ids fall back to the safe "generic" family.
+     */
+    private function family(string $modelId): string
+    {
+        $id = \strtolower($modelId);
+        if (\str_contains($id, 'gpt-image')) {
+            return 'gpt-image';
+        }
+        if (\str_contains($id, 'dall-e-2') || \str_contains($id, 'dalle2')) {
+            return 'dalle2';
+        }
+        if (\str_contains($id, 'dall-e-3') || \str_contains($id, 'dalle3')) {
+            return 'dalle3';
+        }
+
+        return 'generic';
     }
 }

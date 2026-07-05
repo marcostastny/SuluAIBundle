@@ -111,20 +111,31 @@ class SearchContentTool implements AssistantToolInterface
             }
         }
 
+        $note = null;
         if (\in_array('forms', $types, true)) {
-            $results = [...$results, ...$this->formSearcher->search($query, $locale, self::LIMIT)];
+            try {
+                $results = [...$results, ...$this->formSearcher->search($query, $locale, self::LIMIT)];
+            } catch (\Throwable) {
+                // Degrade like the index path does rather than failing the turn.
+                $note = 'Form search is currently unavailable; only other results (if any) are shown.';
+            }
         }
 
         foreach ($results as $result) {
             $this->targetCollector->add($result);
         }
 
-        return [
+        $response = [
             'results' => \array_map(
                 static fn (array $result): array => \array_diff_key($result, ['view' => true, 'attributes' => true]),
                 $results
             ),
         ];
+        if (null !== $note) {
+            $response['note'] = $note;
+        }
+
+        return $response;
     }
 
     /**

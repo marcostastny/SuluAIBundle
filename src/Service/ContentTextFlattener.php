@@ -25,10 +25,15 @@ class ContentTextFlattener
     /**
      * @param array<mixed> $content
      */
+    /**
+     * Guards against pathological/cyclic nesting exhausting the call stack.
+     */
+    private const MAX_DEPTH = 40;
+
     public function flatten(array $content, int $maxLength = 6000): string
     {
         $parts = [];
-        $this->collect($content, $parts);
+        $this->collect($content, $parts, 0);
 
         $text = \implode("\n", $parts);
         $text = (string) \preg_replace('/[ \t]+/', ' ', $text);
@@ -46,7 +51,7 @@ class ContentTextFlattener
      * @param mixed    $value
      * @param string[] $parts
      */
-    private function collect($value, array &$parts): void
+    private function collect($value, array &$parts, int $depth): void
     {
         if (\is_string($value)) {
             $clean = \trim(\strip_tags($value));
@@ -57,12 +62,12 @@ class ContentTextFlattener
             return;
         }
 
-        if (\is_array($value)) {
+        if (\is_array($value) && $depth < self::MAX_DEPTH) {
             foreach ($value as $key => $item) {
                 if (\is_string($key) && \in_array($key, self::SKIP_KEYS, true)) {
                     continue;
                 }
-                $this->collect($item, $parts);
+                $this->collect($item, $parts, $depth + 1);
             }
         }
     }

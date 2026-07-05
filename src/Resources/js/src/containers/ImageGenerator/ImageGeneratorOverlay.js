@@ -28,6 +28,8 @@ class ImageGeneratorOverlay extends React.Component<{}> {
     @observable references = [];
     @observable generating = false;
     @observable resultGroups = [];
+    // Monotonic token so callbacks from a superseded/closed run are ignored.
+    runId = 0;
 
     @computed get referencesAllowed() {
         const models = imageGeneratorStore.models;
@@ -98,7 +100,11 @@ class ImageGeneratorOverlay extends React.Component<{}> {
     };
 
     @action handleReferenceUpload = (file) => {
+        if (file.size > 10 * 1024 * 1024) {
+            return;
+        }
         const reader = new FileReader();
+        reader.onerror = () => {};
         reader.onload = action(() => {
             const result = String(reader.result || '');
             const base64 = result.substring(result.indexOf(',') + 1);
@@ -116,6 +122,10 @@ class ImageGeneratorOverlay extends React.Component<{}> {
 
     @action close = () => {
         imageGeneratorStore.close();
+        // Invalidate any in-flight run so its callbacks can't reset state on the
+        // reopened overlay, and clear the loading flag immediately.
+        this.runId++;
+        this.generating = false;
         this.resultGroups = [];
         this.references = [];
     };
@@ -125,6 +135,7 @@ class ImageGeneratorOverlay extends React.Component<{}> {
             return;
         }
         this.generating = true;
+        const runId = ++this.runId;
         this.resultGroups = imageGeneratorStore.models
             .filter((model) => this.selectedModelIds.includes(model.id))
             .map((model) => ({label: model.label, id: model.id, images: [], error: null, loading: true}));
@@ -154,7 +165,10 @@ class ImageGeneratorOverlay extends React.Component<{}> {
         );
 
         Promise.all(requests).then(action(() => {
-            this.generating = false;
+            // Ignore if this run was superseded or the overlay was closed.
+            if (runId === this.runId) {
+                this.generating = false;
+            }
         }));
     };
 
@@ -271,6 +285,7 @@ class ImageGeneratorOverlay extends React.Component<{}> {
                                         <li className={styles.referenceChip} key={index}>
                                             {reference.filename}
                                             <button
+                                                aria-label={translate('sulu_admin.delete')}
                                                 className={styles.referenceRemove}
                                                 onClick={() => this.removeReference(index)}
                                                 type="button"

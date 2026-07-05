@@ -36,7 +36,7 @@ export default class MetaGeneratorToolbarAction extends AbstractFormToolbarActio
             label: translate('sulu_ai.generate_meta'),
             icon: 'su-magic',
             loading: this.loading,
-            disabled: !id,
+            disabled: !id || this.loading,
             onClick: this.handleClick,
         };
     }
@@ -46,6 +46,12 @@ export default class MetaGeneratorToolbarAction extends AbstractFormToolbarActio
     };
 
     @action handleClick = () => {
+        // The toolbar's `loading` prop only renders a spinner; it does not block
+        // clicks, so guard against concurrent submissions here.
+        if (this.loading) {
+            return;
+        }
+
         const id = this.resourceFormStore.id;
         const locale = this.resourceFormStore.locale ? this.resourceFormStore.locale.get() : undefined;
 

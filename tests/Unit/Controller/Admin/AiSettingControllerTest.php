@@ -55,6 +55,60 @@ class AiSettingControllerTest extends TestCase
         $this->assertSame('Brand look', $setting->getImageStylePrompt());
     }
 
+    public function testPutKeepsExistingApiKeyWhenSubmittedEmpty(): void
+    {
+        $setting = new AiSetting();
+        $setting->setApiKey('stored-secret');
+
+        $controller = $this->settingController($setting);
+        // The write-only field arrives empty when unchanged; must not wipe.
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'apiKey' => '',
+        ]));
+
+        $this->assertSame('stored-secret', $setting->getApiKey());
+    }
+
+    public function testPutUpdatesApiKeyWhenNonEmpty(): void
+    {
+        $setting = new AiSetting();
+        $setting->setApiKey('old-secret');
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'apiKey' => 'new-secret',
+        ]));
+
+        $this->assertSame('new-secret', $setting->getApiKey());
+    }
+
+    public function testApiKeyIsNotSerializedButApiKeySetIs(): void
+    {
+        $setting = new AiSetting();
+        $setting->setApiKey('secret');
+
+        $this->assertTrue($setting->hasApiKey());
+    }
+
+    private function settingController(AiSetting $setting): AiSettingController
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($setting);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $viewHandler = $this->createMock(ViewHandlerInterface::class);
+        $viewHandler->method('handle')->willReturnCallback(static fn (View $view): Response => new Response());
+
+        return new AiSettingController($entityManager, $viewHandler);
+    }
+
     public function testPutWithoutImageKeysKeepsExistingImageConfig(): void
     {
         $setting = new AiSetting();

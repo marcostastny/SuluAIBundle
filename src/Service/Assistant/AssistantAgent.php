@@ -58,6 +58,9 @@ class AssistantAgent
             $conversation[] = $message;
 
             foreach ($toolCalls as $toolCall) {
+                if (!\is_array($toolCall) || !\is_array($toolCall['function'] ?? null)) {
+                    continue;
+                }
                 $name = (string) ($toolCall['function']['name'] ?? '');
                 $arguments = \json_decode((string) ($toolCall['function']['arguments'] ?? '{}'), true);
                 $arguments = \is_array($arguments) ? $arguments : [];
@@ -149,9 +152,17 @@ class AssistantAgent
                 }
 
                 $tool = $this->toolRegistry->get($name);
-                $result = null !== $tool
-                    ? $tool->execute($arguments)
-                    : ['error' => \sprintf('Unknown tool "%s".', $name)];
+                if (null === $tool) {
+                    $result = ['error' => \sprintf('Unknown tool "%s".', $name)];
+                } else {
+                    try {
+                        $result = $tool->execute($arguments);
+                    } catch (\Throwable $e) {
+                        // Report the failure to the model so the turn can recover
+                        // instead of aborting the whole request.
+                        $result = ['error' => \sprintf('Tool "%s" failed: %s', $name, $e->getMessage())];
+                    }
+                }
                 $conversation[] = [
                     'role' => 'tool',
                     'tool_call_id' => (string) ($toolCall['id'] ?? ''),

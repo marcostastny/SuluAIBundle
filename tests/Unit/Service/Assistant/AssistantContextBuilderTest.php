@@ -180,4 +180,23 @@ class AssistantContextBuilderTest extends TestCase
         $this->assertStringContainsString('"resume"', $page['systemPrompt']);
         $this->assertStringContainsString('"resume"', $global);
     }
+
+    public function testGlobalPromptMentionsDataQueriesOnlyWhenAvailable(): void
+    {
+        $with = $this->builder()->buildGlobalPrompt(new AiSetting(), true);
+        $without = $this->builder()->buildGlobalPrompt(new AiSetting());
+
+        $this->assertStringContainsString('run_select_query', $with);
+        $this->assertStringContainsString('list_data_tables', $with);
+        $this->assertStringNotContainsString('run_select_query', $without);
+    }
+
+    public function testPagePromptMentionsDataQueriesWhenAvailable(): void
+    {
+        $with = $this->builder()->build('default', 'de', ['title' => 'x'], new AiSetting(), [], true);
+        $without = $this->builder()->build('default', 'de', ['title' => 'x'], new AiSetting());
+
+        $this->assertStringContainsString('run_select_query', $with['systemPrompt']);
+        $this->assertStringNotContainsString('run_select_query', $without['systemPrompt']);
+    }
 }

@@ -56,3 +56,19 @@
     color: #666;
     font-style: italic;
 }
+
+.footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 12px;
+}
+
+.cancel-button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    color: #333;
+}

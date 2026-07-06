@@ -7,6 +7,7 @@ import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
+import TabSwitchCard from './TabSwitchCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -57,6 +58,10 @@ class AssistantWindow extends React.Component {
     };
 
     renderMessage = (message, index) => {
+        if (message.hidden) {
+            return null;
+        }
+
         const bubbleClass = message.role === 'user'
             ? styles.userMessage
             : message.role === 'error' ? styles.errorMessage : styles.assistantMessage;
@@ -74,6 +79,12 @@ class AssistantWindow extends React.Component {
                     .filter((messageAction) => messageAction.type === 'navigate')
                     .map((messageAction, actionIndex) => (
                         <NavigationCard action={messageAction} key={'nav-' + actionIndex} message={message} />
+                    ))
+                }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'switchTab')
+                    .map((messageAction, actionIndex) => (
+                        <TabSwitchCard action={messageAction} key={'tab-' + actionIndex} message={message} />
                     ))
                 }
             </div>

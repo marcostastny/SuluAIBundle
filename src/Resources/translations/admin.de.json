@@ -17,6 +17,8 @@
     "sulu_ai.personality_formal": "Formell",
     "sulu_ai.custom_prompt": "Eigener Assistenten-Prompt",
     "sulu_ai.custom_prompt_info": "Wird an den System-Prompt des Assistenten angehängt. Gilt nur für den Assistenten-Chat.",
+    "sulu_ai.data_query_tables": "Abfragbare Tabellen (Daten-Abfragen)",
+    "sulu_ai.data_query_tables_info": "Ein Tabellenname pro Zeile. Benutzer mit der \"AI\"-Rollenberechtigung für Daten-Abfragen können den Assistenten schreibgeschützte SELECT-Abfragen auf diese Tabellen ausführen lassen; Ergebnisse werden an den konfigurierten AI-Endpunkt gesendet. Empfohlen für Formular-Einsendungen: fo_forms, fo_form_translations, fo_form_fields, fo_form_field_translations, fo_dynamics. Leer lassen zum Deaktivieren.",
     "sulu_ai.generate_meta": "Meta mit KI generieren",
     "sulu_ai.generate_meta_save_first": "Bitte die Seite speichern, bevor Meta-Informationen generiert werden.",
     "sulu_ai.generate_meta_error": "Meta-Generierung fehlgeschlagen. Bitte KI-Einstellungen prüfen und erneut versuchen.",

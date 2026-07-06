@@ -22,6 +22,7 @@ class AiSetting implements AuditableInterface
     public const SECURITY_CONTEXT_GENERATION = 'sulu_ai.meta_generation';
     public const SECURITY_CONTEXT_ASSISTANT = 'sulu_ai.assistant';
     public const SECURITY_CONTEXT_IMAGE_GENERATION = 'sulu_ai.image_generation';
+    public const SECURITY_CONTEXT_DATA_QUERY = 'sulu_ai.data_query';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -68,6 +69,14 @@ class AiSetting implements AuditableInterface
     #[ORM\Column(type: 'text', nullable: true)]
     #[Serializer\Expose]
     private ?string $customPrompt = null;
+
+    /**
+     * Newline-separated table names the assistant may query with read-only
+     * SQL. Raw textarea value; parsing/sanitizing lives in DataQueryGate.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $dataQueryTables = null;
 
     public function __construct()
     {
@@ -219,6 +228,18 @@ class AiSetting implements AuditableInterface
     public function setCustomPrompt(?string $customPrompt): self
     {
         $this->customPrompt = $customPrompt;
+
+        return $this;
+    }
+
+    public function getDataQueryTables(): ?string
+    {
+        return $this->dataQueryTables;
+    }
+
+    public function setDataQueryTables(?string $dataQueryTables): self
+    {
+        $this->dataQueryTables = $dataQueryTables;
 
         return $this;
     }

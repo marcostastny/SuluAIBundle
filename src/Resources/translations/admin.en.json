@@ -17,6 +17,8 @@
     "sulu_ai.personality_formal": "Formal",
     "sulu_ai.custom_prompt": "Custom assistant prompt",
     "sulu_ai.custom_prompt_info": "Appended to the assistant's system prompt. Applies to the assistant chat only.",
+    "sulu_ai.data_query_tables": "Queryable tables (data queries)",
+    "sulu_ai.data_query_tables_info": "One database table per line. Users with the \"AI\" role permission for data queries can let the assistant run read-only SELECT queries against these tables; results are sent to the configured AI endpoint. Recommended for form submissions: fo_forms, fo_form_translations, fo_form_fields, fo_form_field_translations, fo_dynamics. Leave empty to disable.",
     "sulu_ai.generate_meta": "Generate meta with AI",
     "sulu_ai.generate_meta_save_first": "Save the page before generating meta information.",
     "sulu_ai.generate_meta_error": "Meta generation failed. Check the AI settings and try again.",

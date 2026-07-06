@@ -82,6 +82,12 @@
                 <info_text>sulu_ai.custom_prompt_info</info_text>
             </meta>
         </property>
+        <property name="dataQueryTables" type="text_area" colspan="12">
+            <meta>
+                <title>sulu_ai.data_query_tables</title>
+                <info_text>sulu_ai.data_query_tables_info</info_text>
+            </meta>
+        </property>
         <property name="imageStylePrompt" type="text_area" colspan="12">
             <meta>
                 <title>sulu_ai.image_style_prompt</title>

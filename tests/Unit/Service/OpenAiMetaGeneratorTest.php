@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Tests\Unit\Service;
 
+use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 use Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -19,7 +20,7 @@ class OpenAiMetaGeneratorTest extends TestCase
             ],
         ];
         $client = new MockHttpClient(new MockResponse((string) json_encode($payload)));
-        $generator = new OpenAiMetaGenerator($client);
+        $generator = new OpenAiMetaGenerator(new OpenAiClient($client));
 
         $result = $generator->generate('https://api.test/v1', 'secret', 'gpt-test', 'Title', 'Body', 'en');
 
@@ -32,7 +33,7 @@ class OpenAiMetaGeneratorTest extends TestCase
     {
         $body = json_encode(['error' => ['message' => "Unsupported value: 'temperature' does not support 0.4"]]);
         $client = new MockHttpClient(new MockResponse((string) $body, ['http_code' => 400]));
-        $generator = new OpenAiMetaGenerator($client);
+        $generator = new OpenAiMetaGenerator(new OpenAiClient($client));
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("temperature' does not support 0.4");
@@ -42,7 +43,7 @@ class OpenAiMetaGeneratorTest extends TestCase
 
     public function testParseReplyExtractsEmbeddedJson(): void
     {
-        $generator = new OpenAiMetaGenerator(new MockHttpClient());
+        $generator = new OpenAiMetaGenerator(new OpenAiClient(new MockHttpClient()));
         $result = $generator->parseReply('Sure: {"title":"X","description":"Y","keywords":"z"} done');
         $this->assertSame('X', $result['title']);
         $this->assertSame('Y', $result['description']);
@@ -51,7 +52,7 @@ class OpenAiMetaGeneratorTest extends TestCase
 
     public function testParseReplyThrowsOnNonJson(): void
     {
-        $generator = new OpenAiMetaGenerator(new MockHttpClient());
+        $generator = new OpenAiMetaGenerator(new OpenAiClient(new MockHttpClient()));
         $this->expectException(\RuntimeException::class);
         $generator->parseReply('no json at all');
     }

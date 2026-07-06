@@ -8,6 +8,7 @@ use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantToolInterface;
 use Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry;
+use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -48,7 +49,7 @@ class AssistantAgentTest extends TestCase
 
     private function agent(MockHttpClient $client, ?AssistantToolInterface $tool = null): AssistantAgent
     {
-        return new AssistantAgent($client, new ToolRegistry($tool ? [$tool] : []), $this->collector);
+        return new AssistantAgent(new OpenAiClient($client), new ToolRegistry($tool ? [$tool] : []), $this->collector);
     }
 
     private function collectingTool(): AssistantToolInterface

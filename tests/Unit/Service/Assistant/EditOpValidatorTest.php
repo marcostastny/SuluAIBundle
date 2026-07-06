@@ -68,6 +68,82 @@ class EditOpValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validate($ops, $this->schema(), $this->formData()));
     }
 
+    public function testSetRejectsNonScalarValue(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'set', 'path' => '/title', 'value' => ['de' => 'x']]],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('scalar', $errors[0]);
+    }
+
+    public function testSetBlockFieldRejectsNonScalarValue(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'setBlockField', 'path' => '/blocks/0/text', 'value' => ['nested' => true]]],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('scalar', $errors[0]);
+    }
+
+    public function testSetAcceptsScalarAndListValues(): void
+    {
+        $errors = $this->validator->validate(
+            [
+                ['op' => 'set', 'path' => '/title', 'value' => 'plain'],
+                ['op' => 'set', 'path' => '/article', 'value' => ['a', 'b']],
+            ],
+            $this->schema(),
+            $this->formData()
+        );
+
+        $this->assertSame([], $errors);
+    }
+
+    public function testSetRejectsScalarIntoComplexSelectionField(): void
+    {
+        $schema = ['fields' => [
+            'image' => ['type' => 'media_selection', 'required' => false],
+        ]];
+
+        $errors = $this->validator->validate(
+            [['op' => 'set', 'path' => '/image', 'value' => 'sunset']],
+            $schema,
+            []
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('cannot edit', $errors[0]);
+    }
+
+    public function testInsertBlockRejectsScalarIntoComplexSubField(): void
+    {
+        $schema = ['fields' => [
+            'content' => [
+                'type' => 'block',
+                'required' => false,
+                'blockTypes' => [
+                    'gallery' => ['fields' => ['images' => ['type' => 'media_selection']]],
+                ],
+            ],
+        ]];
+
+        $errors = $this->validator->validate(
+            [['op' => 'insertBlock', 'path' => '/content', 'index' => 0, 'block' => ['type' => 'gallery', 'images' => 'x']]],
+            $schema,
+            ['content' => []]
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('cannot set', $errors[0]);
+    }
+
     public function testInsertRaisesTheValidIndexRangeForLaterOps(): void
     {
         // formData has 2 blocks; after the insert, index 2 is a valid target.

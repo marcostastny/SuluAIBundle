@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-
 /**
  * Calls an OpenAI-compatible chat-completions endpoint to produce SEO meta.
  */
 class OpenAiMetaGenerator
 {
-    public function __construct(private HttpClientInterface $httpClient)
+    public function __construct(private OpenAiClient $client)
     {
     }
 
@@ -26,30 +24,14 @@ class OpenAiMetaGenerator
         string $body,
         string $locale
     ): array {
-        $response = $this->httpClient->request(
-            'POST',
-            \rtrim($apiUrl, '/') . '/chat/completions',
-            [
-                'auth_bearer' => $apiKey,
-                'json' => [
-                    'model' => $model,
-                    'response_format' => ['type' => 'json_object'],
-                    'messages' => [
-                        ['role' => 'system', 'content' => $this->systemPrompt($locale)],
-                        ['role' => 'user', 'content' => $this->userPrompt($title, $body)],
-                    ],
-                ],
-            ]
-        );
-
-        $statusCode = $response->getStatusCode();
-        $data = $response->toArray(false);
-
-        if ($statusCode >= 400) {
-            $message = $data['error']['message'] ?? \json_encode($data);
-
-            throw new \RuntimeException(\sprintf('API returned status %d: %s', $statusCode, $message));
-        }
+        $data = $this->client->postJson($apiUrl, $apiKey, '/chat/completions', [
+            'model' => $model,
+            'response_format' => ['type' => 'json_object'],
+            'messages' => [
+                ['role' => 'system', 'content' => $this->systemPrompt($locale)],
+                ['role' => 'user', 'content' => $this->userPrompt($title, $body)],
+            ],
+        ]);
 
         $content = $data['choices'][0]['message']['content'] ?? '';
 
@@ -61,16 +43,23 @@ class OpenAiMetaGenerator
      */
     public function parseReply(string $reply): array
     {
-        $start = \strpos($reply, '{');
-        $end = \strrpos($reply, '}');
-        if (false === $start || false === $end || $end < $start) {
-            throw new \RuntimeException(\sprintf(
-                'AI reply did not contain a JSON object. Reply was: %s',
-                '' === \trim($reply) ? '(empty)' : \mb_substr($reply, 0, 200)
-            ));
-        }
+        // Strip a leading/trailing markdown code fence (```json ... ```), which
+        // some OpenAI-compatible models add despite response_format.
+        $stripped = \trim((string) \preg_replace('/```[a-zA-Z]*\n?|```/', '', $reply));
 
-        $decoded = \json_decode(\substr($reply, $start, $end - $start + 1), true);
+        $decoded = \json_decode($stripped, true);
+        if (!\is_array($decoded)) {
+            // Fall back to the outermost {...} span for replies wrapped in prose.
+            $start = \strpos($stripped, '{');
+            $end = \strrpos($stripped, '}');
+            if (false === $start || false === $end || $end < $start) {
+                throw new \RuntimeException(\sprintf(
+                    'AI reply did not contain a JSON object. Reply was: %s',
+                    '' === \trim($reply) ? '(empty)' : \mb_substr($reply, 0, 200)
+                ));
+            }
+            $decoded = \json_decode(\substr($stripped, $start, $end - $start + 1), true);
+        }
         if (!\is_array($decoded)) {
             throw new \RuntimeException('AI reply was not valid JSON.');
         }

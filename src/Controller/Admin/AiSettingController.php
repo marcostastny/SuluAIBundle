@@ -25,14 +25,14 @@ class AiSettingController extends AbstractRestController implements SecuredContr
 
     public function getAction(): Response
     {
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
 
         return $this->handleView($this->view($setting ?: new AiSetting()));
     }
 
     public function putAction(Request $request): Response
     {
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
         if (!$setting) {
             $setting = new AiSetting();
             $this->entityManager->persist($setting);
@@ -40,9 +40,41 @@ class AiSettingController extends AbstractRestController implements SecuredContr
 
         $data = $request->request->all();
         $setting->setApiUrl($data['apiUrl'] ?? null);
-        $setting->setApiKey($data['apiKey'] ?? null);
         $setting->setModel($data['model'] ?? null);
         $setting->setEnabled((bool) ($data['enabled'] ?? false));
+
+        // The key is write-only: the form never receives it, so an empty submit
+        // means "unchanged". Only overwrite when a new non-empty value is sent.
+        if (\array_key_exists('apiKey', $data) && '' !== (string) $data['apiKey']) {
+            $setting->setApiKey((string) $data['apiKey']);
+        }
+
+        // Only touch the image fields when the payload carries them, so an
+        // old-shape PUT (stale admin bundle, or an external script) can't wipe
+        // the saved models and style prompt.
+        if (\array_key_exists('imageModels', $data)) {
+            $imageModels = [];
+            foreach ((array) $data['imageModels'] as $model) {
+                if (!\is_array($model) || '' === (string) ($model['modelId'] ?? '')) {
+                    continue;
+                }
+                $imageModels[] = [
+                    // Sulu's block field requires a "type" on every item; keep it so
+                    // the settings form can render the saved models on reload.
+                    'type' => 'model',
+                    'label' => (string) ($model['label'] ?? $model['modelId']),
+                    'modelId' => (string) $model['modelId'],
+                    'supportsReference' => (bool) ($model['supportsReference'] ?? false),
+                    'maxImages' => \max(1, \min(4, (int) ($model['maxImages'] ?? 1))),
+                ];
+            }
+            $setting->setImageModels($imageModels);
+        }
+        if (\array_key_exists('imageStylePrompt', $data)) {
+            $setting->setImageStylePrompt(
+                '' === (string) $data['imageStylePrompt'] ? null : (string) $data['imageStylePrompt']
+            );
+        }
 
         $this->entityManager->flush();
 

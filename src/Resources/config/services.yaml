@@ -8,6 +8,7 @@ services:
             tags: ['sulu_ai.assistant_tool']
 
     Marcostastny\SuluAIBundle\Service\ContentTextFlattener: ~
+    Marcostastny\SuluAIBundle\Service\OpenAiClient: ~
     Marcostastny\SuluAIBundle\Service\OpenAiMetaGenerator: ~
     Marcostastny\SuluAIBundle\Service\PageContentExtractor: ~
 
@@ -70,6 +71,25 @@ services:
             $formMetadataProvider: '@sulu_admin.form_metadata_provider'
 
     Marcostastny\SuluAIBundle\Controller\Admin\AssistantController:
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }
+
+    Marcostastny\SuluAIBundle\Service\ImageGeneration\ImagePromptBuilder: ~
+    Marcostastny\SuluAIBundle\Service\ImageGeneration\OpenAiImageGenerator: ~
+
+    Marcostastny\SuluAIBundle\Service\ImageGeneration\AiCreatedCollection:
+        arguments:
+            $collectionManager: '@sulu_media.collection_manager'
+
+    Marcostastny\SuluAIBundle\Service\ImageGeneration\GeneratedImageSaver: ~
+
+    Marcostastny\SuluAIBundle\Controller\Admin\ImageGenerationController:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $securityChecker: '@sulu_security.security_checker'
+            $tokenStorage: '@security.token_storage'
         public: true
         tags:
             - { name: sulu.context, context: admin }

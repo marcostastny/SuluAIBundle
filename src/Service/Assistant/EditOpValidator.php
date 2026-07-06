@@ -12,6 +12,21 @@ namespace Marcostastny\SuluAIBundle\Service\Assistant;
 class EditOpValidator
 {
     /**
+     * Field types the assistant may write via set/setBlockField/insertBlock.
+     * These take a scalar (or a flat list of scalars). Everything else —
+     * media/page/snippet/teaser selections, smart_content, blocks, etc. —
+     * expects a structured value, so a scalar would corrupt the field; those
+     * are rejected rather than validated.
+     *
+     * @var string[]
+     */
+    private const EDITABLE_FIELD_TYPES = [
+        'text_line', 'text_area', 'text_editor', 'email', 'url', 'phone',
+        'password', 'number', 'single_select', 'checkbox', 'color',
+        'date', 'time', 'datetime',
+    ];
+
+    /**
      * @param array<int, mixed> $ops
      * @param array{fields?: array<string, array<string, mixed>>} $schema
      * @param array<string, mixed> $formData
@@ -67,6 +82,12 @@ class EditOpValidator
                 if ('block' === $fields[$property]['type']) {
                     return \sprintf('"%s" is a block property; use setBlockField/insertBlock/removeBlock/moveBlock.', $property);
                 }
+                if (!$this->isEditableField($fields[$property])) {
+                    return \sprintf('"%s" is a "%s" field, which the assistant cannot edit.', $property, (string) ($fields[$property]['type'] ?? ''));
+                }
+                if (!$this->isValidFieldValue($op['value'] ?? null)) {
+                    return \sprintf('value for "%s" must be a scalar or a list of scalars.', $property);
+                }
 
                 return null;
 
@@ -87,6 +108,12 @@ class EditOpValidator
                 if (!isset($typeFields[$blockField])) {
                     return \sprintf('block %d of "%s" is a "%s" block, which has no field "%s".', $index, $property, $blockType, $blockField);
                 }
+                if (!$this->isEditableField($typeFields[$blockField])) {
+                    return \sprintf('field "%s" of block "%s" is a "%s" field, which the assistant cannot edit.', $blockField, $blockType, (string) ($typeFields[$blockField]['type'] ?? ''));
+                }
+                if (!$this->isValidFieldValue($op['value'] ?? null)) {
+                    return \sprintf('value for "%s/%d/%s" must be a scalar or a list of scalars.', $property, $index, $blockField);
+                }
 
                 return null;
 
@@ -104,12 +131,19 @@ class EditOpValidator
                 if (!isset($blockTypes[$blockType])) {
                     return \sprintf('unknown block type "%s"; available: %s.', $blockType, \implode(', ', \array_keys($blockTypes)));
                 }
-                foreach (\array_keys($block) as $key) {
+                foreach ($block as $key => $blockValue) {
                     if ('type' === $key || 'settings' === $key) {
                         continue;
                     }
-                    if (!isset($blockTypes[$blockType]['fields'][$key])) {
+                    $blockFieldDef = $blockTypes[$blockType]['fields'][$key] ?? null;
+                    if (null === $blockFieldDef) {
                         return \sprintf('block type "%s" has no field "%s".', $blockType, $key);
+                    }
+                    if (!$this->isEditableField($blockFieldDef)) {
+                        return \sprintf('field "%s" of block "%s" is a "%s" field, which the assistant cannot set.', $key, $blockType, (string) ($blockFieldDef['type'] ?? ''));
+                    }
+                    if (!$this->isValidFieldValue($blockValue)) {
+                        return \sprintf('value for field "%s" of block "%s" must be a scalar or a list of scalars.', $key, $blockType);
                     }
                 }
                 \array_splice($blockStates[$property], $index, 0, [$blockType]);
@@ -146,6 +180,41 @@ class EditOpValidator
             default:
                 return \sprintf('unknown op "%s".', $kind);
         }
+    }
+
+    /**
+     * A field value must be a scalar, null, or a flat list of scalars (e.g. a
+     * multi-select). Nested objects/associative arrays are rejected so the
+     * model cannot write a structure into a text field, which would corrupt the
+     * form data and break the field's input on the client.
+     */
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isEditableField(array $field): bool
+    {
+        return \in_array((string) ($field['type'] ?? ''), self::EDITABLE_FIELD_TYPES, true);
+    }
+
+    private function isValidFieldValue(mixed $value): bool
+    {
+        if (null === $value || \is_scalar($value)) {
+            return true;
+        }
+        if (\is_array($value)) {
+            if (!\array_is_list($value)) {
+                return false;
+            }
+            foreach ($value as $item) {
+                if (!\is_scalar($item)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

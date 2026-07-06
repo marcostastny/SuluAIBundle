@@ -30,5 +30,49 @@
                 <title>sulu_ai.api_key</title>
             </meta>
         </property>
+        <property name="imageStylePrompt" type="text_area" colspan="12">
+            <meta>
+                <title>sulu_ai.image_style_prompt</title>
+                <info_text>sulu_ai.image_style_prompt_info</info_text>
+            </meta>
+        </property>
+        <property name="imageModels" type="block" minOccurs="0" colspan="12">
+            <meta>
+                <title>sulu_ai.image_models</title>
+                <info_text>sulu_ai.image_models_info</info_text>
+            </meta>
+            <types>
+                <type name="model">
+                    <meta>
+                        <title>sulu_ai.image_model</title>
+                    </meta>
+                    <properties>
+                        <property name="label" type="text_line" colspan="6">
+                            <meta>
+                                <title>sulu_ai.image_model_label</title>
+                            </meta>
+                        </property>
+                        <property name="modelId" type="text_line" colspan="6">
+                            <meta>
+                                <title>sulu_ai.image_model_id</title>
+                            </meta>
+                        </property>
+                        <property name="supportsReference" type="checkbox" colspan="6">
+                            <meta>
+                                <title>sulu_ai.image_model_supports_reference</title>
+                            </meta>
+                            <params>
+                                <param name="type" value="toggler"/>
+                            </params>
+                        </property>
+                        <property name="maxImages" type="number" colspan="6">
+                            <meta>
+                                <title>sulu_ai.image_model_max_images</title>
+                            </meta>
+                        </property>
+                    </properties>
+                </type>
+            </types>
+        </property>
     </properties>
 </form>

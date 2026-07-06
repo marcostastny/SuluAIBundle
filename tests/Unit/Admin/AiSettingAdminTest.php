@@ -24,9 +24,10 @@ class AiSettingAdminTest extends TestCase
 
         $securityChecker = $this->createMock(SecurityCheckerInterface::class);
         $securityChecker->method('hasPermission')->willReturnCallback(
-            static fn (mixed $context, string $permission): bool => AiSetting::SECURITY_CONTEXT_ASSISTANT === $context
-                && PermissionTypes::VIEW === $permission
-                && $hasAssistantPermission
+            static fn (mixed $context, string $permission): bool => \in_array($context, [
+                AiSetting::SECURITY_CONTEXT_ASSISTANT,
+                AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
+            ], true) && PermissionTypes::VIEW === $permission && $hasAssistantPermission
         );
 
         return new AiSettingAdmin(
@@ -43,6 +44,9 @@ class AiSettingAdminTest extends TestCase
         $setting->setApiUrl('https://api.test/v1');
         $setting->setApiKey('key');
         $setting->setModel('gpt-test');
+        $setting->setImageModels([
+            ['label' => 'GPT Image 2', 'modelId' => 'gpt-image-2', 'supportsReference' => true, 'maxImages' => 4],
+        ]);
 
         return $setting;
     }
@@ -73,5 +77,57 @@ class AiSettingAdminTest extends TestCase
         $disabled = $this->enabledSetting();
         $disabled->setEnabled(false);
         $this->assertFalse($this->admin($disabled, true)->getConfig()['assistant']['available']);
+    }
+
+    public function testImageGenerationAvailableWhenEnabledAndPermitted(): void
+    {
+        $config = $this->admin($this->enabledSetting(), true)->getConfig();
+
+        $this->assertTrue($config['imageGeneration']['available']);
+        $this->assertSame('gpt-image-2', $config['imageGeneration']['models'][0]['id']);
+        $this->assertTrue($config['imageGeneration']['models'][0]['supportsReference']);
+    }
+
+    public function testImageGenerationUnavailableWithoutPermission(): void
+    {
+        $config = $this->admin($this->enabledSetting(), false)->getConfig();
+
+        $this->assertFalse($config['imageGeneration']['available']);
+    }
+
+    public function testImageGenerationModelsEmptyWhenUnconfigured(): void
+    {
+        $config = $this->admin(null, true)->getConfig();
+
+        $this->assertFalse($config['imageGeneration']['available']);
+        $this->assertSame([], $config['imageGeneration']['models']);
+    }
+
+    public function testImageGenerationModelsHiddenWithoutPermission(): void
+    {
+        $config = $this->admin($this->enabledSetting(), false)->getConfig();
+
+        // The models list must not leak to users lacking the image permission.
+        $this->assertSame([], $config['imageGeneration']['models']);
+    }
+
+    public function testConfigSurvivesMissingSchema(): void
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willThrowException(new \RuntimeException('no such table: sulu_ai_settings'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $admin = new AiSettingAdmin(
+            $this->createMock(ViewBuilderFactoryInterface::class),
+            $this->createMock(SecurityCheckerInterface::class),
+            $entityManager
+        );
+
+        $config = $admin->getConfig();
+
+        $this->assertFalse($config['assistant']['available']);
+        $this->assertFalse($config['imageGeneration']['available']);
+        $this->assertSame([], $config['imageGeneration']['models']);
     }
 }

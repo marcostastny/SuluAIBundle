@@ -37,8 +37,8 @@ class MetaGenerationController
             return new JsonResponse(['message' => 'Missing page id or locale.'], 400);
         }
 
-        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([]);
-        if (!$setting || !$setting->isEnabled() || !$setting->getApiUrl() || !$setting->getApiKey() || !$setting->getModel()) {
+        $setting = $this->entityManager->getRepository(AiSetting::class)->findOneBy([], ['id' => 'ASC']);
+        if (!$setting || !$setting->isConfigured()) {
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 
@@ -46,6 +46,16 @@ class MetaGenerationController
             $page = $this->pageContentExtractor->extract($id, $locale);
         } catch (PageNotFoundException) {
             return new JsonResponse(['message' => 'Page not found.'], 404);
+        }
+
+        // Authorize against the page's own webspace, not just the global
+        // meta_generation grant, so a user cannot extract meta for content in a
+        // webspace they may not view. Throws AccessDeniedException (403).
+        if ('' !== $page['webspace']) {
+            $this->securityChecker->checkPermission(
+                'sulu.webspaces.' . $page['webspace'],
+                PermissionTypes::VIEW
+            );
         }
 
         try {

@@ -19,7 +19,13 @@ class RouterStore {
             return false;
         }
 
-        this.router.navigate(view, attributes);
+        try {
+            // Router.navigate throws synchronously for an unknown route name
+            // (e.g. a stale/hallucinated view); report failure instead.
+            this.router.navigate(view, attributes);
+        } catch (error) {
+            return false;
+        }
 
         return true;
     }

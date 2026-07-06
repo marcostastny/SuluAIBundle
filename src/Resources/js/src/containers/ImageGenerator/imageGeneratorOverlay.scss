@@ -1,0 +1,94 @@
+.body {
+    padding: 24px 30px 30px;
+    overflow-x: hidden;
+}
+
+.summary {
+    margin: 8px 0 0;
+    color: #999;
+    font-size: 13px;
+}
+
+.models {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.count {
+    max-width: 120px;
+}
+
+.references {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.referenceList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.referenceChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    font-size: 13px;
+}
+
+.referenceRemove {
+    border: 0;
+    background: none;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.resultGroup {
+    margin-top: 20px;
+}
+
+.resultGroupTitle {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #444;
+}
+
+.results {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.resultCard {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.resultCard img {
+    display: block;
+    width: 100%;
+}
+
+.savedHint {
+    margin: 8px 0 0;
+    color: #999;
+    font-size: 13px;
+}
+
+.error {
+    color: #d9534f;
+    font-size: 13px;
+}

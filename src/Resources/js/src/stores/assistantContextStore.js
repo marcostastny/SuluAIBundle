@@ -2,6 +2,7 @@
 import {action, observable, toJS} from 'mobx';
 import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
+import {snapshotBlockTypes} from '../utils/applyOps';
 import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
@@ -11,9 +12,18 @@ class AssistantContextStore {
     @observable messages = [];
     @observable loading = false;
     @observable available = false;
+    @observable panelOpen = false;
 
     @action setAvailable(available) {
         this.available = available;
+    }
+
+    @action togglePanel() {
+        this.panelOpen = !this.panelOpen;
+    }
+
+    get currentStore() {
+        return this.context ? this.context.resourceFormStore : null;
     }
 
     @action setContext(context) {
@@ -39,6 +49,10 @@ class AssistantContextStore {
         const context = this.context;
         const resourceFormStore = context ? context.resourceFormStore : null;
         const formData = resourceFormStore ? toJS(resourceFormStore.data) : {};
+        // Bind the proposal to this exact form-store instance and capture the
+        // block layout now, so an approved edit can only be applied to the page
+        // it was generated against (the store instance changes on navigation).
+        const store = resourceFormStore;
 
         this.messages.push({role: 'user', content: text.trim(), actions: [], applied: false, discarded: false});
         this.loading = true;
@@ -59,10 +73,19 @@ class AssistantContextStore {
             messages: history,
         }).then(action((response) => {
             this.loading = false;
+            const actions = (response.actions || []).map((responseAction) =>
+                responseAction.type === 'proposeEdits'
+                    ? {
+                        ...responseAction,
+                        store,
+                        baseline: snapshotBlockTypes(formData, responseAction.ops || []),
+                    }
+                    : responseAction
+            );
             this.messages.push({
                 role: 'assistant',
                 content: response.reply || '',
-                actions: response.actions || [],
+                actions,
                 applied: false,
                 discarded: false,
             });

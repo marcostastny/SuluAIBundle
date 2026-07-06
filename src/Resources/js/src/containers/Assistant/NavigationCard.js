@@ -37,11 +37,13 @@ class NavigationCard extends React.Component {
             return;
         }
 
-        this.props.message.applied = true;
+        // Per-action flag: a message can carry several navigation cards, so
+        // opening one must not mark the others (or a sibling diff card) done.
+        this.props.action.opened = true;
     };
 
     render() {
-        const {action: navigateAction, message} = this.props;
+        const {action: navigateAction} = this.props;
 
         return (
             <div className={styles.card}>
@@ -65,7 +67,7 @@ class NavigationCard extends React.Component {
                         </button>
                     </div>
                 ))}
-                {message.applied && <div className={styles.status}>{translate('sulu_ai.assistant_opened')}</div>}
+                {navigateAction.opened && <div className={styles.status}>{translate('sulu_ai.assistant_opened')}</div>}
             </div>
         );
     }

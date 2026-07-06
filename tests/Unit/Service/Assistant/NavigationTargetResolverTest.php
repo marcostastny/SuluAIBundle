@@ -70,15 +70,16 @@ class NavigationTargetResolverTest extends TestCase
         $this->assertNull($this->resolver()->resolve(['resourceKey' => 'contacts', 'resourceId' => '1']));
     }
 
-    public function testMissingDocumentPathResolvesToNullAttribute(): void
+    public function testMissingDocumentPathReturnsNullSoNoBrokenTargetIsOffered(): void
     {
+        // The page route needs a webspace; without it the target would open a
+        // broken route, so the resolver drops it rather than emit a null attr.
         $result = $this->resolver()->resolve([
             'resourceKey' => 'pages',
             'resourceId' => '42',
             'locale' => 'de',
         ]);
 
-        $this->assertNotNull($result);
-        $this->assertNull($result['attributes']['webspace']);
+        $this->assertNull($result);
     }
 }

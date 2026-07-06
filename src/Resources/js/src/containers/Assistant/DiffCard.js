@@ -20,6 +20,17 @@ const formatValue = (value) => {
 
 @observer
 class DiffCard extends React.Component {
+    pushConflict = () => {
+        this.props.message.discarded = true;
+        assistantContextStore.messages.push({
+            role: 'error',
+            content: translate('sulu_ai.assistant_conflict'),
+            actions: [],
+            applied: false,
+            discarded: false,
+        });
+    };
+
     @action handleApply = () => {
         const {action: proposeAction, message} = this.props;
         const context = assistantContextStore.context;
@@ -27,19 +38,21 @@ class DiffCard extends React.Component {
             return;
         }
 
+        // Refuse to apply a proposal made against a different form — the chat
+        // (and its diff cards) survive navigation between pages, and each form
+        // gets a fresh store instance.
+        if (proposeAction.store && proposeAction.store !== context.resourceFormStore) {
+            this.pushConflict();
+
+            return;
+        }
+
         try {
-            applyOps(context.resourceFormStore, proposeAction.ops);
+            applyOps(context.resourceFormStore, proposeAction.ops, proposeAction.baseline || {});
             message.applied = true;
         } catch (error) {
             if (error instanceof ApplyConflictError) {
-                message.discarded = true;
-                assistantContextStore.messages.push({
-                    role: 'error',
-                    content: translate('sulu_ai.assistant_conflict'),
-                    actions: [],
-                    applied: false,
-                    discarded: false,
-                });
+                this.pushConflict();
 
                 return;
             }
@@ -51,10 +64,7 @@ class DiffCard extends React.Component {
         this.props.message.discarded = true;
     };
 
-    renderOpRow = (op, index) => {
-        const context = assistantContextStore.context;
-        const data = context ? toJS(context.resourceFormStore.data) : {};
-
+    renderOpRow = (op, index, data) => {
         switch (op.op) {
             case 'set': {
                 const property = op.path.slice(1);
@@ -117,11 +127,13 @@ class DiffCard extends React.Component {
 
     render() {
         const {action: proposeAction, message} = this.props;
+        const context = assistantContextStore.context;
+        const data = context ? toJS(context.resourceFormStore.data) : {};
 
         return (
             <div className={styles.card}>
                 {!!proposeAction.summary && <div className={styles.summary}>{proposeAction.summary}</div>}
-                {proposeAction.ops.map(this.renderOpRow)}
+                {proposeAction.ops.map((op, index) => this.renderOpRow(op, index, data))}
                 {message.applied &&
                     <div className={styles.status}>{translate('sulu_ai.assistant_applied')}</div>
                 }

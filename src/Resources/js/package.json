@@ -1,10 +1,33 @@
 {
     "name": "sulu-ai-bundle",
     "license": "MIT",
+    "scripts": {
+        "test": "jest"
+    },
     "peerDependencies": {
         "mobx": "^4.0.0",
         "react": "^17.0.0",
         "sulu-admin-bundle": "*",
         "sulu-page-bundle": "*"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.23.0",
+        "@babel/preset-env": "^7.23.0",
+        "@babel/preset-flow": "^7.22.0",
+        "babel-jest": "^29.7.0",
+        "jest": "^29.7.0"
+    },
+    "babel": {
+        "presets": [
+            ["@babel/preset-env", {"targets": {"node": "current"}}],
+            "@babel/preset-flow"
+        ]
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "moduleNameMapper": {
+            "^mobx$": "<rootDir>/tests/mobxStub.js"
+        },
+        "testMatch": ["<rootDir>/tests/**/*.test.js"]
     }
 }

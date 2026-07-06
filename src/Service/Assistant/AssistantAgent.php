@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service\Assistant;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 
 /**
  * Runs the OpenAI-compatible function-calling loop for the assistant.
@@ -16,7 +16,7 @@ class AssistantAgent
     private const MAX_ITERATIONS = 5;
 
     public function __construct(
-        private HttpClientInterface $httpClient,
+        private OpenAiClient $client,
         private ToolRegistry $toolRegistry,
         private NavigationTargetCollector $targetCollector,
     ) {
@@ -58,6 +58,9 @@ class AssistantAgent
             $conversation[] = $message;
 
             foreach ($toolCalls as $toolCall) {
+                if (!\is_array($toolCall) || !\is_array($toolCall['function'] ?? null)) {
+                    continue;
+                }
                 $name = (string) ($toolCall['function']['name'] ?? '');
                 $arguments = \json_decode((string) ($toolCall['function']['arguments'] ?? '{}'), true);
                 $arguments = \is_array($arguments) ? $arguments : [];
@@ -149,9 +152,17 @@ class AssistantAgent
                 }
 
                 $tool = $this->toolRegistry->get($name);
-                $result = null !== $tool
-                    ? $tool->execute($arguments)
-                    : ['error' => \sprintf('Unknown tool "%s".', $name)];
+                if (null === $tool) {
+                    $result = ['error' => \sprintf('Unknown tool "%s".', $name)];
+                } else {
+                    try {
+                        $result = $tool->execute($arguments);
+                    } catch (\Throwable $e) {
+                        // Report the failure to the model so the turn can recover
+                        // instead of aborting the whole request.
+                        $result = ['error' => \sprintf('Tool "%s" failed: %s', $name, $e->getMessage())];
+                    }
+                }
                 $conversation[] = [
                     'role' => 'tool',
                     'tool_call_id' => (string) ($toolCall['id'] ?? ''),
@@ -174,27 +185,11 @@ class AssistantAgent
      */
     private function requestCompletion(string $apiUrl, string $apiKey, string $model, array $conversation, array $tools): array
     {
-        $response = $this->httpClient->request(
-            'POST',
-            \rtrim($apiUrl, '/') . '/chat/completions',
-            [
-                'auth_bearer' => $apiKey,
-                'json' => [
-                    'model' => $model,
-                    'messages' => $conversation,
-                    'tools' => $tools,
-                ],
-            ]
-        );
-
-        $statusCode = $response->getStatusCode();
-        $data = $response->toArray(false);
-
-        if ($statusCode >= 400) {
-            $message = $data['error']['message'] ?? \json_encode($data);
-
-            throw new \RuntimeException(\sprintf('API returned status %d: %s', $statusCode, $message));
-        }
+        $data = $this->client->postJson($apiUrl, $apiKey, '/chat/completions', [
+            'model' => $model,
+            'messages' => $conversation,
+            'tools' => $tools,
+        ]);
 
         $message = $data['choices'][0]['message'] ?? null;
         if (!\is_array($message)) {

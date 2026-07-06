@@ -21,6 +21,7 @@ class AiSetting implements AuditableInterface
     public const SECURITY_CONTEXT = 'sulu_ai.settings';
     public const SECURITY_CONTEXT_GENERATION = 'sulu_ai.meta_generation';
     public const SECURITY_CONTEXT_ASSISTANT = 'sulu_ai.assistant';
+    public const SECURITY_CONTEXT_IMAGE_GENERATION = 'sulu_ai.image_generation';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -32,8 +33,9 @@ class AiSetting implements AuditableInterface
     #[Serializer\Expose]
     private ?string $apiUrl = null;
 
+    // Not exposed: the raw key must never be serialized back to the browser.
+    // The form reads apiKeySet (below) to know whether one is stored.
     #[ORM\Column(type: 'string', nullable: true)]
-    #[Serializer\Expose]
     private ?string $apiKey = null;
 
     #[ORM\Column(type: 'string', nullable: true)]
@@ -43,6 +45,17 @@ class AiSetting implements AuditableInterface
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Serializer\Expose]
     private ?bool $enabled = false;
+
+    /**
+     * @var array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Serializer\Expose]
+    private ?array $imageModels = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $imageStylePrompt = null;
 
     public function __construct()
     {
@@ -74,6 +87,18 @@ class AiSetting implements AuditableInterface
         return $this->apiKey;
     }
 
+    /**
+     * Write-only surrogate: lets the admin form show whether a key is stored
+     * without ever sending the secret to the browser.
+     */
+    #[Serializer\VirtualProperty]
+    #[Serializer\SerializedName('apiKeySet')]
+    #[Serializer\Expose]
+    public function hasApiKey(): bool
+    {
+        return '' !== (string) $this->apiKey;
+    }
+
     public function setApiKey(?string $apiKey): self
     {
         $this->apiKey = $apiKey;
@@ -98,9 +123,54 @@ class AiSetting implements AuditableInterface
         return (bool) $this->enabled;
     }
 
+    /**
+     * Whether the settings are complete enough to call the API. The chat
+     * completions features (meta, assistant) need a chat model; image
+     * generation picks its model from the imageModels list instead, so it
+     * passes $requireChatModel = false.
+     */
+    public function isConfigured(bool $requireChatModel = true): bool
+    {
+        if (!$this->isEnabled() || '' === (string) $this->apiUrl || '' === (string) $this->apiKey) {
+            return false;
+        }
+
+        return !$requireChatModel || '' !== (string) $this->model;
+    }
+
     public function setEnabled(?bool $enabled): self
     {
         $this->enabled = $enabled;
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>
+     */
+    public function getImageModels(): array
+    {
+        return $this->imageModels ?? [];
+    }
+
+    /**
+     * @param array<int, array{label: string, modelId: string, supportsReference: bool, maxImages: int}>|null $imageModels
+     */
+    public function setImageModels(?array $imageModels): self
+    {
+        $this->imageModels = $imageModels;
+
+        return $this;
+    }
+
+    public function getImageStylePrompt(): ?string
+    {
+        return $this->imageStylePrompt;
+    }
+
+    public function setImageStylePrompt(?string $imageStylePrompt): self
+    {
+        $this->imageStylePrompt = $imageStylePrompt;
 
         return $this;
     }

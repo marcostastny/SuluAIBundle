@@ -23,7 +23,12 @@ class ToolRegistry
 
     public function get(string $name): ?AssistantToolInterface
     {
-        return $this->tools[$name] ?? null;
+        $tool = $this->tools[$name] ?? null;
+        if ($tool instanceof ConditionalToolInterface && !$tool->isAvailable()) {
+            return null;
+        }
+
+        return $tool;
     }
 
     /**
@@ -33,7 +38,10 @@ class ToolRegistry
     {
         return \array_values(\array_map(
             static fn (AssistantToolInterface $tool) => $tool->getDefinition(),
-            $this->tools
+            \array_filter(
+                $this->tools,
+                static fn (AssistantToolInterface $tool): bool => !$tool instanceof ConditionalToolInterface || $tool->isAvailable()
+            )
         ));
     }
 }

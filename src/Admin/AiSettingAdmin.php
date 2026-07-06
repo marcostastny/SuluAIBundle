@@ -141,7 +141,7 @@ class AiSettingAdmin extends Admin
             // endpoint, so a thrown query would take down the entire admin UI —
             // degrade to "not configured" instead.
             return [
-                'assistant' => ['available' => false],
+                'assistant' => ['available' => false, 'agentName' => ''],
                 'imageGeneration' => ['available' => false, 'models' => []],
             ];
         }
@@ -173,6 +173,7 @@ class AiSettingAdmin extends Admin
                     AiSetting::SECURITY_CONTEXT_ASSISTANT,
                     PermissionTypes::VIEW
                 ),
+                'agentName' => \trim((string) $setting?->getAgentName()),
             ],
             'imageGeneration' => [
                 'available' => $imageAvailable && [] !== $models,

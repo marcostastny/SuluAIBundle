@@ -12,10 +12,15 @@ class AssistantContextStore {
     @observable messages = [];
     @observable loading = false;
     @observable available = false;
+    @observable agentName = '';
     @observable panelOpen = false;
 
     @action setAvailable(available) {
         this.available = available;
+    }
+
+    @action setAgentName(agentName) {
+        this.agentName = (agentName || '').trim();
     }
 
     @action togglePanel() {

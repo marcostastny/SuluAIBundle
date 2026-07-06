@@ -111,6 +111,43 @@ class AiSettingAdminTest extends TestCase
         $this->assertSame([], $config['imageGeneration']['models']);
     }
 
+    public function testConfigCarriesAgentName(): void
+    {
+        $setting = $this->enabledSetting();
+        $setting->setAgentName('KULM Concierge');
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($setting);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $admin = new AiSettingAdmin(
+            $this->createMock(ViewBuilderFactoryInterface::class),
+            $this->createMock(SecurityCheckerInterface::class),
+            $entityManager
+        );
+
+        $this->assertSame('KULM Concierge', $admin->getConfig()['assistant']['agentName']);
+    }
+
+    public function testConfigAgentNameEmptyWhenUnsetAndInFallback(): void
+    {
+        $this->assertSame('', $this->admin($this->enabledSetting(), true)->getConfig()['assistant']['agentName']);
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willThrowException(new \RuntimeException('no such table'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $admin = new AiSettingAdmin(
+            $this->createMock(ViewBuilderFactoryInterface::class),
+            $this->createMock(SecurityCheckerInterface::class),
+            $entityManager
+        );
+
+        $this->assertSame('', $admin->getConfig()['assistant']['agentName']);
+    }
+
     public function testConfigSurvivesMissingSchema(): void
     {
         $repository = $this->createMock(EntityRepository::class);

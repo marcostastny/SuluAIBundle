@@ -7,6 +7,7 @@ import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
+import TabSwitchCard from './TabSwitchCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -57,6 +58,10 @@ class AssistantWindow extends React.Component {
     };
 
     renderMessage = (message, index) => {
+        if (message.hidden) {
+            return null;
+        }
+
         const bubbleClass = message.role === 'user'
             ? styles.userMessage
             : message.role === 'error' ? styles.errorMessage : styles.assistantMessage;
@@ -76,6 +81,12 @@ class AssistantWindow extends React.Component {
                         <NavigationCard action={messageAction} key={'nav-' + actionIndex} message={message} />
                     ))
                 }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'switchTab')
+                    .map((messageAction, actionIndex) => (
+                        <TabSwitchCard action={messageAction} key={'tab-' + actionIndex} message={message} />
+                    ))
+                }
             </div>
         );
     };
@@ -88,7 +99,7 @@ class AssistantWindow extends React.Component {
         return (
             <div className={styles.panel}>
                 <div className={styles.header}>
-                    <span className={styles.title}>{translate('sulu_ai.assistant')}</span>
+                    <span className={styles.title}>{assistantContextStore.agentName || translate('sulu_ai.assistant')}</span>
                     <button
                         aria-label={translate('sulu_ai.assistant_clear')}
                         className={styles.closeButton}

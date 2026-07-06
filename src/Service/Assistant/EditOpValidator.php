@@ -72,10 +72,12 @@ class EditOpValidator
 
         switch ($kind) {
             case 'set':
-                if (!\preg_match('#^/([^/]+)$#', $path, $matches)) {
+                if (!\str_starts_with($path, '/') || '/' === $path) {
                     return \sprintf('"%s" is not a valid set path, expected "/<property>".', $path);
                 }
-                $property = $matches[1];
+                // Property names may themselves contain slashes (e.g. "seo/title"
+                // on the SEO tab), so the whole remainder is the property name.
+                $property = \substr($path, 1);
                 if (!isset($fields[$property])) {
                     return \sprintf('unknown property "%s".', $property);
                 }

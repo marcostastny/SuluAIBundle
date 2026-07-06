@@ -43,6 +43,20 @@ class AssistantController
         $template = (string) ($context['template'] ?? '');
         $locale = (string) ($context['locale'] ?? '');
 
+        $tab = (string) ($context['tab'] ?? 'content');
+        if (!\in_array($tab, ['content', 'seo'], true)) {
+            $tab = 'content';
+        }
+        $availableTabs = [];
+        foreach (\is_array($context['availableTabs'] ?? null) ? $context['availableTabs'] : [] as $availableTab) {
+            if (\is_string($availableTab) && '' !== $availableTab) {
+                $availableTabs[] = $availableTab;
+            }
+        }
+        if (!\in_array($tab, $availableTabs, true)) {
+            $availableTabs[] = $tab;
+        }
+
         if ([] === $messages) {
             return new JsonResponse(['message' => 'Missing messages.'], 400);
         }
@@ -52,19 +66,24 @@ class AssistantController
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 
-        $hasPageContext = '' !== $template && '' !== $locale;
+        // The SEO tab has a fixed form (no template); the content tab needs one.
+        $hasPageContext = '' !== $locale && ('seo' === $tab || '' !== $template);
         $validateOps = null;
+        $tabs = null;
 
         if ($hasPageContext) {
             try {
-                $built = $this->contextBuilder->build($template, $locale, $formData);
+                $built = 'seo' === $tab
+                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs)
+                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs);
             } catch (\RuntimeException $e) {
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
             $systemPrompt = $built['systemPrompt'];
             $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
+            $tabs = ['current' => $tab, 'available' => $availableTabs];
         } else {
-            $systemPrompt = $this->contextBuilder->buildGlobalPrompt();
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting);
         }
 
         $messages = \array_values(\array_filter(\array_map(
@@ -89,7 +108,8 @@ class AssistantController
                 (string) $setting->getModel(),
                 $systemPrompt,
                 $messages,
-                $validateOps
+                $validateOps,
+                $tabs
             );
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);

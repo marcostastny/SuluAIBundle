@@ -57,6 +57,18 @@ class AiSetting implements AuditableInterface
     #[Serializer\Expose]
     private ?string $imageStylePrompt = null;
 
+    #[ORM\Column(type: 'string', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $agentName = null;
+
+    #[ORM\Column(type: 'string', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $personality = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $customPrompt = null;
+
     public function __construct()
     {
         // Sulu 3's AuditableTrait timestamps are non-nullable; Doctrine hydrates
@@ -171,6 +183,42 @@ class AiSetting implements AuditableInterface
     public function setImageStylePrompt(?string $imageStylePrompt): self
     {
         $this->imageStylePrompt = $imageStylePrompt;
+
+        return $this;
+    }
+
+    public function getAgentName(): ?string
+    {
+        return $this->agentName;
+    }
+
+    public function setAgentName(?string $agentName): self
+    {
+        $this->agentName = $agentName;
+
+        return $this;
+    }
+
+    public function getPersonality(): ?string
+    {
+        return $this->personality;
+    }
+
+    public function setPersonality(?string $personality): self
+    {
+        $this->personality = $personality;
+
+        return $this;
+    }
+
+    public function getCustomPrompt(): ?string
+    {
+        return $this->customPrompt;
+    }
+
+    public function setCustomPrompt(?string $customPrompt): self
+    {
+        $this->customPrompt = $customPrompt;
 
         return $this;
     }

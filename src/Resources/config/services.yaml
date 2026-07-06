@@ -69,6 +69,7 @@ services:
     Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder:
         arguments:
             $formMetadataProvider: '@sulu_admin.form_metadata_provider'
+            $seoForms: '%sulu_content.content_seo_forms%'
 
     Marcostastny\SuluAIBundle\Controller\Admin\AssistantController:
         public: true

@@ -156,6 +156,16 @@ The conversation survives navigation; the trash icon in the header clears it.
    **Save**/**Publish** to persist. If the form changed after a proposal was
    made, applying it shows a conflict warning instead of corrupting the page.
 
+**Multi-step tasks & tab switching:** the assistant also works on the page
+**SEO** tab and can carry a task across several approved steps. Ask for an SEO
+change while on the Content tab and it offers a **tab switch card**; if the
+form has unsaved changes, it asks to **save & switch** first. After each
+approved step (page opened, tab switched, diff applied) the assistant
+automatically continues with the next one — e.g. "update the room prices by
+20%" asked from anywhere searches the page, offers to open it, and proposes
+the edits once you are there. Rejecting any step (Discard/Cancel) aborts the
+whole task; automatic continuations are capped so the loop can never run away.
+
 ### Image generator
 
 1. In **AI Settings**, add one or more **Image models** (label + model id as the

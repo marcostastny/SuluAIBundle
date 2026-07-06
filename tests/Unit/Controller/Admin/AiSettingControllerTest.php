@@ -109,6 +109,66 @@ class AiSettingControllerTest extends TestCase
         return new AiSettingController($entityManager, $viewHandler);
     }
 
+    public function testPutStoresBrandingFields(): void
+    {
+        $setting = new AiSetting();
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'agentName' => 'KULM Concierge',
+            'personality' => 'friendly',
+            'customPrompt' => 'Always mention the spa.',
+        ]));
+
+        $this->assertSame('KULM Concierge', $setting->getAgentName());
+        $this->assertSame('friendly', $setting->getPersonality());
+        $this->assertSame('Always mention the spa.', $setting->getCustomPrompt());
+    }
+
+    public function testPutStoresEmptyBrandingFieldsAsNull(): void
+    {
+        $setting = new AiSetting();
+        $setting->setAgentName('Old');
+        $setting->setCustomPrompt('Old prompt');
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'agentName' => '',
+            'personality' => 'neutral',
+            'customPrompt' => '  ',
+        ]));
+
+        $this->assertNull($setting->getAgentName());
+        $this->assertSame('neutral', $setting->getPersonality());
+        $this->assertNull($setting->getCustomPrompt());
+    }
+
+    public function testPutWithoutBrandingKeysKeepsExistingBranding(): void
+    {
+        $setting = new AiSetting();
+        $setting->setAgentName('KULM Concierge');
+        $setting->setPersonality('formal');
+        $setting->setCustomPrompt('Always mention the spa.');
+
+        $controller = $this->settingController($setting);
+        // An old-shape payload without branding keys must not wipe saved branding.
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+        ]));
+
+        $this->assertSame('KULM Concierge', $setting->getAgentName());
+        $this->assertSame('formal', $setting->getPersonality());
+        $this->assertSame('Always mention the spa.', $setting->getCustomPrompt());
+    }
+
     public function testPutWithoutImageKeysKeepsExistingImageConfig(): void
     {
         $setting = new AiSetting();

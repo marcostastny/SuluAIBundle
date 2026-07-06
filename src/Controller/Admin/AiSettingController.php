@@ -76,6 +76,22 @@ class AiSettingController extends AbstractRestController implements SecuredContr
             );
         }
 
+        // Branding fields: only touch when the payload carries them (same
+        // old-shape-PUT protection as the image fields). Whitespace-only
+        // values are stored as null so prompt assembly can treat them as unset.
+        if (\array_key_exists('agentName', $data)) {
+            $agentName = \trim((string) $data['agentName']);
+            $setting->setAgentName('' === $agentName ? null : $agentName);
+        }
+        if (\array_key_exists('personality', $data)) {
+            $personality = \trim((string) $data['personality']);
+            $setting->setPersonality('' === $personality ? null : $personality);
+        }
+        if (\array_key_exists('customPrompt', $data)) {
+            $customPrompt = \trim((string) $data['customPrompt']);
+            $setting->setCustomPrompt('' === $customPrompt ? null : $customPrompt);
+        }
+
         $this->entityManager->flush();
 
         return $this->handleView($this->view($setting));

@@ -5,7 +5,16 @@ import {observer} from 'mobx-react';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
 import applyOps, {ApplyConflictError} from '../../utils/applyOps';
+import {applyContinuationMessage} from '../../utils/continuation';
 import styles from './diffCard.scss';
+
+// Property names may contain slashes ("seo/title"); the corresponding form
+// data is nested (data.seo.title), mirroring Sulu's JSON-pointer semantics.
+const valueAt = (data, property) =>
+    property.split('/').reduce(
+        (value, segment) => (value && typeof value === 'object' ? value[segment] : undefined),
+        data
+    );
 
 const formatValue = (value) => {
     if (value === undefined || value === null || value === '') {
@@ -50,6 +59,11 @@ class DiffCard extends React.Component {
         try {
             applyOps(context.resourceFormStore, proposeAction.ops, proposeAction.baseline || {});
             message.applied = true;
+            if (proposeAction.resume) {
+                // Same page, same tab — the context already matches, so this
+                // fires the continuation immediately.
+                assistantContextStore.scheduleResume(applyContinuationMessage(), {});
+            }
         } catch (error) {
             if (error instanceof ApplyConflictError) {
                 this.pushConflict();
@@ -62,6 +76,9 @@ class DiffCard extends React.Component {
 
     @action handleDiscard = () => {
         this.props.message.discarded = true;
+        if (this.props.action.resume) {
+            assistantContextStore.abortTask();
+        }
     };
 
     renderOpRow = (op, index, data) => {
@@ -72,7 +89,7 @@ class DiffCard extends React.Component {
                 return (
                     <div className={styles.row} key={index}>
                         <div className={styles.rowLabel}>{property}</div>
-                        <div className={styles.oldValue}>{formatValue(data[property])}</div>
+                        <div className={styles.oldValue}>{formatValue(valueAt(data, property))}</div>
                         <div className={styles.newValue}>{formatValue(op.value)}</div>
                     </div>
                 );

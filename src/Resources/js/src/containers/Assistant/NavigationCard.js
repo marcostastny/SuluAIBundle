@@ -6,6 +6,7 @@ import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
 import routerStore from '../../stores/routerStore';
+import {navigationContinuationMessage} from '../../utils/continuation';
 import styles from './navigationCard.scss';
 
 const TYPE_ICONS = {
@@ -40,6 +41,18 @@ class NavigationCard extends React.Component {
         // Per-action flag: a message can carry several navigation cards, so
         // opening one must not mark the others (or a sibling diff card) done.
         this.props.action.opened = true;
+
+        // Arm the multiturn loop exactly once per card: the continuation fires
+        // as soon as the opened page's form bridge registers its context.
+        if (this.props.action.resume && !this.props.action.resumed) {
+            this.props.action.resumed = true;
+            assistantContextStore.scheduleResume(navigationContinuationMessage(target), {id: target.id});
+        }
+    };
+
+    @action handleCancel = () => {
+        this.props.action.cancelled = true;
+        assistantContextStore.abortTask();
     };
 
     render() {
@@ -58,15 +71,27 @@ class NavigationCard extends React.Component {
                                 {target.locale ? ' · ' + target.locale : ''}
                             </div>
                         </div>
-                        <button
-                            className={styles.openButton}
-                            onClick={() => this.handleOpen(target)}
-                            type="button"
-                        >
-                            {translate('sulu_ai.assistant_open')}
-                        </button>
+                        {!navigateAction.cancelled &&
+                            <button
+                                className={styles.openButton}
+                                onClick={() => this.handleOpen(target)}
+                                type="button"
+                            >
+                                {translate('sulu_ai.assistant_open')}
+                            </button>
+                        }
                     </div>
                 ))}
+                {!!navigateAction.resume && !navigateAction.opened && !navigateAction.cancelled &&
+                    <div className={styles.footer}>
+                        <button className={styles.cancelButton} onClick={this.handleCancel} type="button">
+                            {translate('sulu_ai.assistant_cancel')}
+                        </button>
+                    </div>
+                }
+                {navigateAction.cancelled &&
+                    <div className={styles.status}>{translate('sulu_ai.assistant_task_aborted')}</div>
+                }
                 {navigateAction.opened && <div className={styles.status}>{translate('sulu_ai.assistant_opened')}</div>}
             </div>
         );

@@ -85,15 +85,22 @@ class AiSettingAdmin extends Admin
             return;
         }
 
-        try {
-            $contentView = $viewCollection->get(static::PAGE_CONTENT_VIEW);
-            $contentView->setOption('toolbarActions', [
-                ...($contentView->getView()->getOption('toolbarActions') ?? []),
-                new ToolbarAction('sulu_ai.assistant'),
-            ]);
-            $viewCollection->add($contentView);
-        } catch (\Exception) {
-            // Page bundle / content view not available — nothing to do.
+        $assistantViews = [
+            static::PAGE_CONTENT_VIEW => 'content',
+            static::PAGE_SEO_VIEW => 'seo',
+        ];
+
+        foreach ($assistantViews as $viewName => $tab) {
+            try {
+                $view = $viewCollection->get($viewName);
+                $view->setOption('toolbarActions', [
+                    ...($view->getView()->getOption('toolbarActions') ?? []),
+                    new ToolbarAction('sulu_ai.assistant', ['tab' => $tab]),
+                ]);
+                $viewCollection->add($view);
+            } catch (\Exception) {
+                // Page bundle / view not available — nothing to do.
+            }
         }
     }
 
@@ -141,7 +148,7 @@ class AiSettingAdmin extends Admin
             // endpoint, so a thrown query would take down the entire admin UI —
             // degrade to "not configured" instead.
             return [
-                'assistant' => ['available' => false],
+                'assistant' => ['available' => false, 'agentName' => ''],
                 'imageGeneration' => ['available' => false, 'models' => []],
             ];
         }
@@ -173,6 +180,7 @@ class AiSettingAdmin extends Admin
                     AiSetting::SECURITY_CONTEXT_ASSISTANT,
                     PermissionTypes::VIEW
                 ),
+                'agentName' => \trim((string) $setting?->getAgentName()),
             ],
             'imageGeneration' => [
                 'available' => $imageAvailable && [] !== $models,

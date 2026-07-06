@@ -57,14 +57,14 @@ class AssistantController
 
         if ($hasPageContext) {
             try {
-                $built = $this->contextBuilder->build($template, $locale, $formData);
+                $built = $this->contextBuilder->build($template, $locale, $formData, $setting);
             } catch (\RuntimeException $e) {
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
             $systemPrompt = $built['systemPrompt'];
             $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
         } else {
-            $systemPrompt = $this->contextBuilder->buildGlobalPrompt();
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting);
         }
 
         $messages = \array_values(\array_filter(\array_map(

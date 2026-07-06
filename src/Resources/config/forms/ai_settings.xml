@@ -30,6 +30,58 @@
                 <title>sulu_ai.api_key</title>
             </meta>
         </property>
+        <property name="agentName" type="text_line" colspan="6">
+            <meta>
+                <title>sulu_ai.agent_name</title>
+                <info_text>sulu_ai.agent_name_info</info_text>
+            </meta>
+        </property>
+        <property name="personality" type="single_select" colspan="6">
+            <meta>
+                <title>sulu_ai.personality</title>
+            </meta>
+            <params>
+                <param name="default_value" value="neutral"/>
+                <param name="values" type="collection">
+                    <param name="neutral">
+                        <meta>
+                            <title>sulu_ai.personality_neutral</title>
+                        </meta>
+                    </param>
+                    <param name="professional">
+                        <meta>
+                            <title>sulu_ai.personality_professional</title>
+                        </meta>
+                    </param>
+                    <param name="friendly">
+                        <meta>
+                            <title>sulu_ai.personality_friendly</title>
+                        </meta>
+                    </param>
+                    <param name="concise">
+                        <meta>
+                            <title>sulu_ai.personality_concise</title>
+                        </meta>
+                    </param>
+                    <param name="playful">
+                        <meta>
+                            <title>sulu_ai.personality_playful</title>
+                        </meta>
+                    </param>
+                    <param name="formal">
+                        <meta>
+                            <title>sulu_ai.personality_formal</title>
+                        </meta>
+                    </param>
+                </param>
+            </params>
+        </property>
+        <property name="customPrompt" type="text_area" colspan="12">
+            <meta>
+                <title>sulu_ai.custom_prompt</title>
+                <info_text>sulu_ai.custom_prompt_info</info_text>
+            </meta>
+        </property>
         <property name="imageStylePrompt" type="text_area" colspan="12">
             <meta>
                 <title>sulu_ai.image_style_prompt</title>

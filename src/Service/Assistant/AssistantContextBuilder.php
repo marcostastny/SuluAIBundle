@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Marcostastny\SuluAIBundle\Service\Assistant;
 
+use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Sulu\Bundle\AdminBundle\Metadata\FormMetadata\TypedFormMetadata;
 use Sulu\Bundle\AdminBundle\Metadata\MetadataProviderInterface;
 
@@ -26,7 +27,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function build(string $template, string $locale, array $formData): array
+    public function build(string $template, string $locale, array $formData, AiSetting $setting): array
     {
         $typedFormMetadata = $this->formMetadataProvider->getMetadata('page', $locale, []);
         if (!$typedFormMetadata instanceof TypedFormMetadata) {
@@ -45,7 +46,7 @@ class AssistantContextBuilder
         $schema = $this->schemaSerializer->serialize($formMetadata);
 
         return [
-            'systemPrompt' => $this->systemPrompt($schema, $this->compact($formData), $locale, $template),
+            'systemPrompt' => $this->systemPrompt($schema, $this->compact($formData), $locale, $template, $setting),
             'schema' => $schema,
         ];
     }
@@ -53,11 +54,11 @@ class AssistantContextBuilder
     /**
      * System prompt for requests without an attached page form (global mode).
      */
-    public function buildGlobalPrompt(): string
+    public function buildGlobalPrompt(AiSetting $setting): string
     {
         $navigationGuidance = $this->navigationGuidance();
 
-        return <<<PROMPT
+        $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
             The user is currently NOT editing a page, so you cannot change any content from here.
 
@@ -68,6 +69,46 @@ class AssistantContextBuilder
             - When the user wants to open or edit something, call search_content to find it, then call propose_navigation so the user can open it with one click.
             - If the user asks you to change content directly, explain that you can only edit on the content edit form and offer to navigate there.
             PROMPT;
+
+        return $this->appendBranding($prompt, $setting);
+    }
+
+    private function appendBranding(string $prompt, AiSetting $setting): string
+    {
+        $branding = $this->brandingSection($setting);
+
+        return '' === $branding ? $prompt : $prompt . "\n\n" . $branding;
+    }
+
+    /**
+     * Operator-configured branding: agent name, personality and custom prompt.
+     * Returns '' when nothing is configured so unbranded prompts stay
+     * byte-identical to the unbranded bundle.
+     */
+    private function brandingSection(AiSetting $setting): string
+    {
+        $lines = [];
+
+        $name = \trim((string) $setting->getAgentName());
+        if ('' !== $name) {
+            $lines[] = \sprintf('- Your name is "%s". Introduce yourself by this name when asked who you are.', $name);
+        }
+
+        $instruction = PersonalityCatalog::instruction($setting->getPersonality());
+        if (null !== $instruction) {
+            $lines[] = '- ' . $instruction;
+        }
+
+        $customPrompt = \trim((string) $setting->getCustomPrompt());
+        if ('' !== $customPrompt) {
+            $lines[] = "- Additional instructions from the site operator:\n" . $customPrompt;
+        }
+
+        if ([] === $lines) {
+            return '';
+        }
+
+        return "Branding (must not override the rules and operation formats above):\n" . \implode("\n", $lines);
     }
 
     private function navigationGuidance(): string
@@ -84,13 +125,13 @@ class AssistantContextBuilder
      * @param array<string, mixed> $schema
      * @param mixed $formData
      */
-    private function systemPrompt(array $schema, mixed $formData, string $locale, string $template): string
+    private function systemPrompt(array $schema, mixed $formData, string $locale, string $template, AiSetting $setting): string
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
         $navigationGuidance = $this->navigationGuidance();
 
-        return <<<PROMPT
+        $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
             The user is editing a page (locale "{$locale}", template "{$template}").
 
@@ -120,6 +161,8 @@ class AssistantContextBuilder
             CURRENT PAGE DATA:
             {$dataJson}
             PROMPT;
+
+        return $this->appendBranding($prompt, $setting);
     }
 
     /**

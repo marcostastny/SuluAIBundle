@@ -32,6 +32,7 @@ if (Router && typeof Router.prototype.addUpdateAttributesHook === 'function') {
 
 initializer.addUpdateConfigHook('sulu_ai_bundle', (config) => {
     assistantContextStore.setAvailable(Boolean(config && config.assistant && config.assistant.available));
+    assistantContextStore.setAgentName(config && config.assistant && config.assistant.agentName);
     imageGeneratorStore.setConfig(config && config.imageGeneration);
 });
 

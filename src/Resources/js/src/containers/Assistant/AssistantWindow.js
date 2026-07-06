@@ -88,7 +88,7 @@ class AssistantWindow extends React.Component {
         return (
             <div className={styles.panel}>
                 <div className={styles.header}>
-                    <span className={styles.title}>{translate('sulu_ai.assistant')}</span>
+                    <span className={styles.title}>{assistantContextStore.agentName || translate('sulu_ai.assistant')}</span>
                     <button
                         aria-label={translate('sulu_ai.assistant_clear')}
                         className={styles.closeButton}

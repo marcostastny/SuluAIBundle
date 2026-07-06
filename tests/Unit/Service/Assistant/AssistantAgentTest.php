@@ -376,6 +376,65 @@ class AssistantAgentTest extends TestCase
         $this->assertTrue($result['actions'][0]['resume']);
     }
 
+    public function testSwitchTabReturnsTerminalAction(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('switch_tab', ['tab' => 'seo', 'message' => 'Zum SEO-Tab wechseln.', 'resume' => true]),
+        ]);
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system prompt',
+            [['role' => 'user', 'content' => 'bitte SEO-Texte anpassen']],
+            static fn (array $ops) => [],
+            ['current' => 'content', 'available' => ['content', 'seo']]
+        );
+
+        $this->assertSame('Zum SEO-Tab wechseln.', $result['reply']);
+        $this->assertSame(
+            [['type' => 'switchTab', 'tab' => 'seo', 'message' => 'Zum SEO-Tab wechseln.', 'resume' => true]],
+            $result['actions']
+        );
+    }
+
+    public function testSwitchTabRejectsUnknownTabThenRecovers(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('switch_tab', ['tab' => 'excerpt', 'message' => 'Wechsel.']),
+            $this->textResponse('Das geht hier nicht.'),
+        ]);
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system prompt',
+            [['role' => 'user', 'content' => 'hi']],
+            static fn (array $ops) => [],
+            ['current' => 'content', 'available' => ['content', 'seo']]
+        );
+
+        $this->assertSame('Das geht hier nicht.', $result['reply']);
+        $this->assertSame([], $result['actions']);
+    }
+
+    public function testSwitchTabWithoutTabContextFallsThroughToUnknownTool(): void
+    {
+        // No $tabs passed: switch_tab is not registered, so a hallucinated call
+        // must produce a tool-error message and let the model recover.
+        $client = new MockHttpClient([
+            $this->toolCallResponse('switch_tab', ['tab' => 'seo', 'message' => 'Wechsel.']),
+            $this->textResponse('Ok, anders.'),
+        ]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertSame('Ok, anders.', $result['reply']);
+        $this->assertSame([], $result['actions']);
+    }
+
     public function testApiErrorSurfacesAsRuntimeException(): void
     {
         $body = (string) \json_encode(['error' => ['message' => 'model overloaded']]);

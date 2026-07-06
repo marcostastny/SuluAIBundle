@@ -8,8 +8,9 @@ use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 
 /**
  * Runs the OpenAI-compatible function-calling loop for the assistant.
- * Server tools from the ToolRegistry are executed in-loop; propose_edits and
- * propose_navigation are terminal and returned to the client as actions.
+ * Server tools from the ToolRegistry are executed in-loop; propose_edits,
+ * propose_navigation and switch_tab are terminal and returned to the client
+ * as actions.
  */
 class AssistantAgent
 {
@@ -26,6 +27,8 @@ class AssistantAgent
      * @param list<array{role: string, content: string}> $messages
      * @param (callable(array<int, mixed>): list<string>)|null $validateOps returns error strings, empty when
      *                                                                      valid; null disables propose_edits
+     * @param array{current: string, available: list<string>}|null $tabs edit-form tabs; enables switch_tab
+     *                                                                   when another tab is available
      *
      * @return array{reply: string, actions: list<array<string, mixed>>}
      */
@@ -35,7 +38,8 @@ class AssistantAgent
         string $model,
         string $systemPrompt,
         array $messages,
-        ?callable $validateOps
+        ?callable $validateOps,
+        ?array $tabs = null
     ): array {
         $this->targetCollector->reset();
 
@@ -44,8 +48,15 @@ class AssistantAgent
         if (null !== $validateOps) {
             $tools = [$this->proposeEditsDefinition(), ...$tools];
         }
+        $switchableTabs = null !== $tabs
+            ? \array_values(\array_diff($tabs['available'], [$tabs['current']]))
+            : [];
+        if ([] !== $switchableTabs) {
+            $tools[] = $this->switchTabDefinition($switchableTabs);
+        }
         $proposalRetried = false;
         $navigationRetried = false;
+        $switchTabRetried = false;
 
         for ($iteration = 0; $iteration < self::MAX_ITERATIONS; ++$iteration) {
             $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools);
@@ -161,6 +172,44 @@ class AssistantAgent
                     continue;
                 }
 
+                if ('switch_tab' === $name && [] !== $switchableTabs) {
+                    $tab = (string) ($arguments['tab'] ?? '');
+                    $switchMessage = (string) ($arguments['message'] ?? '');
+
+                    if (\in_array($tab, $switchableTabs, true)) {
+                        $reply = \trim((string) ($message['content'] ?? ''));
+
+                        return [
+                            'reply' => '' !== $reply ? $reply : $switchMessage,
+                            'actions' => [[
+                                'type' => 'switchTab',
+                                'tab' => $tab,
+                                'message' => $switchMessage,
+                                'resume' => (bool) ($arguments['resume'] ?? false),
+                            ]],
+                        ];
+                    }
+
+                    if ($switchTabRetried) {
+                        return [
+                            'reply' => 'I could not switch to the requested tab. Please switch manually.',
+                            'actions' => [],
+                        ];
+                    }
+
+                    $switchTabRetried = true;
+                    $conversation[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => (string) ($toolCall['id'] ?? ''),
+                        'content' => (string) \json_encode([
+                            'errors' => [\sprintf('tab "%s" is not available; available tabs: %s.', $tab, \implode(', ', $switchableTabs))],
+                            'instruction' => 'Call switch_tab with one of the available tabs, or answer in text.',
+                        ]),
+                    ];
+
+                    continue;
+                }
+
                 $tool = $this->toolRegistry->get($name);
                 if (null === $tool) {
                     $result = ['error' => \sprintf('Unknown tool "%s".', $name)];
@@ -253,6 +302,38 @@ class AssistantAgent
                         'resume' => $this->resumeParameter(),
                     ],
                     'required' => ['message', 'targets'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param non-empty-list<string> $tabs
+     *
+     * @return array<string, mixed>
+     */
+    private function switchTabDefinition(array $tabs): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => 'switch_tab',
+                'description' => 'Ask the user to switch to another tab of the currently open edit form. The user has to confirm with a click; unsaved changes are saved first. Only fields of the active tab are editable, so switch before proposing edits to fields that live on another tab.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'tab' => [
+                            'type' => 'string',
+                            'enum' => $tabs,
+                            'description' => 'The tab to switch to.',
+                        ],
+                        'message' => [
+                            'type' => 'string',
+                            'description' => 'One sentence describing why the switch is needed, in the user\'s language.',
+                        ],
+                        'resume' => $this->resumeParameter(),
+                    ],
+                    'required' => ['tab', 'message'],
                 ],
             ],
         ];

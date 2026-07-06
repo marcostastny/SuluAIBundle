@@ -151,6 +151,83 @@ class AssistantControllerTest extends TestCase
         );
     }
 
+    public function testSeoTabContextUsesSeoBuilderAndPassesTabs(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->expects($this->never())->method('build');
+        $contextBuilder->expects($this->once())
+            ->method('buildSeoTab')
+            ->with('de', ['seo' => ['title' => 'Alt']], $this->anything(), ['content', 'seo'])
+            ->willReturn(['systemPrompt' => 'seo prompt', 'schema' => ['fields' => []]]);
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->expects($this->once())
+            ->method('run')
+            ->with(
+                'https://api.test/v1',
+                'key',
+                'gpt-test',
+                'seo prompt',
+                [['role' => 'user', 'content' => 'Meta-Titel verbessern']],
+                $this->isInstanceOf(\Closure::class),
+                ['current' => 'seo', 'available' => ['content', 'seo']]
+            )
+            ->willReturn(['reply' => 'ok', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)->postAction($this->jsonRequest([
+            'context' => ['type' => 'page', 'locale' => 'de', 'tab' => 'seo', 'availableTabs' => ['content', 'seo']],
+            'formData' => ['seo' => ['title' => 'Alt']],
+            'messages' => [['role' => 'user', 'content' => 'Meta-Titel verbessern']],
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testContentTabPassesTabsToAgent(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('build')
+            ->with('default', 'de', ['template' => 'default'], $this->anything(), ['content', 'seo'])
+            ->willReturn(['systemPrompt' => 'page prompt', 'schema' => ['fields' => []]]);
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->expects($this->once())
+            ->method('run')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                'page prompt',
+                $this->anything(),
+                $this->isInstanceOf(\Closure::class),
+                ['current' => 'content', 'available' => ['content', 'seo']]
+            )
+            ->willReturn(['reply' => 'ok', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)->postAction($this->jsonRequest([
+            'context' => ['type' => 'page', 'template' => 'default', 'locale' => 'de', 'tab' => 'content', 'availableTabs' => ['content', 'seo']],
+            'formData' => ['template' => 'default'],
+            'messages' => [['role' => 'user', 'content' => 'hi']],
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testUnknownTabFallsBackToContent(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->expects($this->once())->method('build')->willReturn(['systemPrompt' => 'p', 'schema' => ['fields' => []]]);
+        $contextBuilder->expects($this->never())->method('buildSeoTab');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturn(['reply' => 'ok', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)->postAction($this->jsonRequest([
+            'context' => ['type' => 'page', 'template' => 'default', 'locale' => 'de', 'tab' => 'excerpt'],
+            'formData' => [],
+            'messages' => [['role' => 'user', 'content' => 'hi']],
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
     public function testAgentFailureReturns502(): void
     {
         $contextBuilder = $this->createMock(AssistantContextBuilder::class);

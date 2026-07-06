@@ -75,7 +75,12 @@ class AssistantAgent
 
                         return [
                             'reply' => '' !== $reply ? $reply : $summary,
-                            'actions' => [['type' => 'proposeEdits', 'summary' => $summary, 'ops' => $ops]],
+                            'actions' => [[
+                                'type' => 'proposeEdits',
+                                'summary' => $summary,
+                                'ops' => $ops,
+                                'resume' => (bool) ($arguments['resume'] ?? false),
+                            ]],
                         ];
                     }
 
@@ -127,7 +132,12 @@ class AssistantAgent
 
                         return [
                             'reply' => '' !== $reply ? $reply : $navigationMessage,
-                            'actions' => [['type' => 'navigate', 'message' => $navigationMessage, 'targets' => $targets]],
+                            'actions' => [[
+                                'type' => 'navigate',
+                                'message' => $navigationMessage,
+                                'targets' => $targets,
+                                'resume' => (bool) ($arguments['resume'] ?? false),
+                            ]],
                         ];
                     }
 
@@ -202,6 +212,17 @@ class AssistantAgent
     /**
      * @return array<string, mixed>
      */
+    private function resumeParameter(): array
+    {
+        return [
+            'type' => 'boolean',
+            'description' => 'Set to true when the overall task is NOT finished after this action. After the user approves it you are automatically called again with the updated context so you can continue. Omit or set false when this action completes the task.',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function proposeNavigationDefinition(): array
     {
         return [
@@ -229,6 +250,7 @@ class AssistantAgent
                                 'required' => ['type', 'id', 'locale'],
                             ],
                         ],
+                        'resume' => $this->resumeParameter(),
                     ],
                     'required' => ['message', 'targets'],
                 ],
@@ -258,6 +280,7 @@ class AssistantAgent
                             'description' => 'The list of edit operations.',
                             'items' => ['type' => 'object'],
                         ],
+                        'resume' => $this->resumeParameter(),
                     ],
                     'required' => ['summary', 'ops'],
                 ],

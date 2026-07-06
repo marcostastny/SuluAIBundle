@@ -330,6 +330,52 @@ class AssistantAgentTest extends TestCase
         $this->assertContains('propose_navigation', $names);
     }
 
+    public function testProposeEditsCarriesResumeFlag(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_edits', [
+                'summary' => 'Preise erhöht.',
+                'ops' => [['op' => 'set', 'path' => '/title', 'value' => 'x']],
+                'resume' => true,
+            ]),
+        ]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertTrue($result['actions'][0]['resume']);
+    }
+
+    public function testProposeEditsDefaultsResumeToFalse(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_edits', [
+                'summary' => 'Titel geändert.',
+                'ops' => [['op' => 'set', 'path' => '/title', 'value' => 'x']],
+            ]),
+        ]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertFalse($result['actions'][0]['resume']);
+    }
+
+    public function testProposeNavigationCarriesResumeFlag(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('search_content', ['query' => 'Zimmer']),
+            $this->toolCallResponse('propose_navigation', [
+                'message' => 'Zimmerseite öffnen?',
+                'targets' => [['type' => 'pages', 'id' => '42', 'locale' => 'de']],
+                'resume' => true,
+            ], 'call_2'),
+        ]);
+
+        $result = $this->runAgent($this->agent($client, $this->collectingTool()));
+
+        $this->assertSame('navigate', $result['actions'][0]['type']);
+        $this->assertTrue($result['actions'][0]['resume']);
+    }
+
     public function testApiErrorSurfacesAsRuntimeException(): void
     {
         $body = (string) \json_encode(['error' => ['message' => 'model overloaded']]);

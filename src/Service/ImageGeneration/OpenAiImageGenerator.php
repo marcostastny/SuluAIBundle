@@ -14,6 +14,16 @@ use Symfony\Component\Mime\Part\Multipart\FormDataPart;
  */
 class OpenAiImageGenerator
 {
+    /**
+     * gpt-image-* models stream no bytes until the image is fully rendered,
+     * which regularly exceeds PHP's default_socket_timeout (60s) — the idle
+     * timeout must cover the whole render time.
+     */
+    private const REQUEST_OPTIONS = [
+        'timeout' => 300,
+        'max_duration' => 320,
+    ];
+
     public function __construct(private OpenAiClient $client)
     {
     }
@@ -46,7 +56,7 @@ class OpenAiImageGenerator
 
             // No response_format: the gpt-image-* models reject it and return
             // b64_json by default; DALL·E returns a url, which the saver fetches.
-            $data = $this->client->postJson($apiUrl, $apiKey, '/images/generations', $json);
+            $data = $this->client->postJson($apiUrl, $apiKey, '/images/generations', $json, self::REQUEST_OPTIONS);
         } else {
             $fields = [
                 'model' => $modelId,
@@ -69,7 +79,7 @@ class OpenAiImageGenerator
                 )];
             }
 
-            $data = $this->client->postMultipart($apiUrl, $apiKey, '/images/edits', new FormDataPart($fields));
+            $data = $this->client->postMultipart($apiUrl, $apiKey, '/images/edits', new FormDataPart($fields), self::REQUEST_OPTIONS);
         }
 
         $images = [];

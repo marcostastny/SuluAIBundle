@@ -22,12 +22,14 @@ class OpenAiClient
 
     /**
      * @param array<string, mixed> $json
+     * @param array<string, mixed> $options extra HttpClient options (e.g. timeout/max_duration
+     *                                      for slow endpoints such as image generation)
      *
      * @return array<string, mixed>
      */
-    public function postJson(string $apiUrl, string $apiKey, string $path, array $json): array
+    public function postJson(string $apiUrl, string $apiKey, string $path, array $json, array $options = []): array
     {
-        $response = $this->httpClient->request('POST', $this->endpoint($apiUrl, $path), [
+        $response = $this->httpClient->request('POST', $this->endpoint($apiUrl, $path), $options + [
             'auth_bearer' => $apiKey,
             'json' => $json,
         ]);
@@ -36,11 +38,14 @@ class OpenAiClient
     }
 
     /**
+     * @param array<string, mixed> $options extra HttpClient options (e.g. timeout/max_duration
+     *                                      for slow endpoints such as image generation)
+     *
      * @return array<string, mixed>
      */
-    public function postMultipart(string $apiUrl, string $apiKey, string $path, FormDataPart $formData): array
+    public function postMultipart(string $apiUrl, string $apiKey, string $path, FormDataPart $formData, array $options = []): array
     {
-        $response = $this->httpClient->request('POST', $this->endpoint($apiUrl, $path), [
+        $response = $this->httpClient->request('POST', $this->endpoint($apiUrl, $path), $options + [
             'auth_bearer' => $apiKey,
             'headers' => $formData->getPreparedHeaders()->toArray(),
             'body' => $formData->bodyToIterable(),

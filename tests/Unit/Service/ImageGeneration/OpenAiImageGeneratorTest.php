@@ -100,6 +100,25 @@ class OpenAiImageGeneratorTest extends TestCase
         $this->assertStringNotContainsString('image[][0]', $capturedBody);
     }
 
+    public function testGenerateUsesLongTimeoutForSlowImageModels(): void
+    {
+        $capturedOptions = null;
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$capturedOptions): ResponseInterface {
+            $capturedOptions = $options;
+
+            return new MockResponse((string) json_encode(['data' => [['b64_json' => 'AAA']]]));
+        });
+        $generator = new OpenAiImageGenerator(new OpenAiClient($client));
+
+        $generator->generate('https://api.test/v1', 'secret', 'gpt-image-2', 'a cat', '1024x1024', 1, []);
+
+        // gpt-image-* renders take longer than default_socket_timeout (60s);
+        // without an explicit idle timeout the request dies with
+        // "Idle timeout reached" before the image is returned.
+        $this->assertGreaterThanOrEqual(300, $capturedOptions['timeout']);
+        $this->assertGreaterThanOrEqual(300, $capturedOptions['max_duration']);
+    }
+
     public function testGenerateSurfacesApiError(): void
     {
         $body = json_encode(['error' => ['message' => 'model not found']]);

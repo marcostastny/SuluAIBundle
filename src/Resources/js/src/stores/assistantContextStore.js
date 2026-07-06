@@ -181,15 +181,20 @@ class AssistantContextStore {
             messages: history,
         }).then(action((response) => {
             this.loading = false;
-            const actions = (response.actions || []).map((responseAction) =>
-                responseAction.type === 'proposeEdits'
+            const actions = (response.actions || []).map((responseAction) => {
+                // Initialize the per-card status flags now: mobx 4 only
+                // observes keys that exist when the object becomes observable,
+                // so flags added later would never re-render the cards.
+                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false};
+
+                return responseAction.type === 'proposeEdits'
                     ? {
-                        ...responseAction,
+                        ...base,
                         store,
                         baseline: snapshotBlockTypes(formData, responseAction.ops || []),
                     }
-                    : responseAction
-            );
+                    : base;
+            });
             this.messages.push({
                 role: 'assistant',
                 content: response.reply || '',

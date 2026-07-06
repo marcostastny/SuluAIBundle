@@ -269,6 +269,35 @@ class EditOpValidatorTest extends TestCase
         $this->assertCount(1, $errors);
     }
 
+    public function testSetAcceptsPropertyNamesContainingSlashes(): void
+    {
+        $schema = ['fields' => [
+            'seo/title' => ['type' => 'text_line', 'required' => false],
+            'seo/description' => ['type' => 'text_area', 'required' => false],
+        ]];
+
+        $errors = $this->validator->validate([
+            ['op' => 'set', 'path' => '/seo/title', 'value' => 'Hotel Kulm — Zimmer'],
+            ['op' => 'set', 'path' => '/seo/description', 'value' => 'Beschreibung'],
+        ], $schema, []);
+
+        $this->assertSame([], $errors);
+    }
+
+    public function testSetRejectsUnknownSlashedProperty(): void
+    {
+        $schema = ['fields' => ['seo/title' => ['type' => 'text_line', 'required' => false]]];
+
+        $errors = $this->validator->validate(
+            [['op' => 'set', 'path' => '/seo/nonexistent', 'value' => 'x']],
+            $schema,
+            []
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('seo/nonexistent', $errors[0]);
+    }
+
     public function testErrorsArePrefixedWithOpIndex(): void
     {
         $errors = $this->validator->validate(

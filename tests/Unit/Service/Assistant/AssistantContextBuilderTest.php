@@ -133,4 +133,51 @@ class AssistantContextBuilderTest extends TestCase
 
         $this->builder()->build('nonexistent', 'de', [], new AiSetting());
     }
+
+    public function testBuildSeoTabUsesSeoFormMetadata(): void
+    {
+        $title = new FieldMetadata('seo/title');
+        $title->setType('text_line');
+
+        $form = new FormMetadata();
+        $form->setKey('content_seo');
+        $form->addItem($title);
+
+        $provider = $this->createMock(MetadataProviderInterface::class);
+        $provider->method('getMetadata')
+            ->with('content_seo', 'de', ['forms' => ['content_seo_metadata']])
+            ->willReturn($form);
+
+        $builder = new AssistantContextBuilder(
+            $provider,
+            new TemplateSchemaSerializer(),
+            ['content_seo_metadata' => ['instanceOf' => 'Sulu\Content\Domain\Model\SeoInterface']]
+        );
+
+        $result = $builder->buildSeoTab('de', ['seo' => ['title' => 'Alt']], new AiSetting(), ['content', 'seo']);
+
+        $this->assertArrayHasKey('seo/title', $result['schema']['fields']);
+        $this->assertStringContainsString('SEO tab', $result['systemPrompt']);
+        $this->assertStringContainsString('propose_edits', $result['systemPrompt']);
+        $this->assertStringContainsString('switch_tab', $result['systemPrompt']);
+        $this->assertStringContainsString('"resume"', $result['systemPrompt']);
+    }
+
+    public function testBuildMentionsTabsOnlyWhenOtherTabsAvailable(): void
+    {
+        $withTabs = $this->builder()->build('default', 'de', ['title' => 'x'], new AiSetting(), ['content', 'seo']);
+        $withoutTabs = $this->builder()->build('default', 'de', ['title' => 'x'], new AiSetting());
+
+        $this->assertStringContainsString('switch_tab', $withTabs['systemPrompt']);
+        $this->assertStringNotContainsString('switch_tab', $withoutTabs['systemPrompt']);
+    }
+
+    public function testPromptsContainMultiStepGuidance(): void
+    {
+        $page = $this->builder()->build('default', 'de', ['title' => 'x'], new AiSetting());
+        $global = $this->builder()->buildGlobalPrompt(new AiSetting());
+
+        $this->assertStringContainsString('"resume"', $page['systemPrompt']);
+        $this->assertStringContainsString('"resume"', $global);
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Marcostastny\SuluAIBundle\Service\Assistant;
 
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
+use Sulu\Bundle\AdminBundle\Metadata\FormMetadata\FormMetadata;
 use Sulu\Bundle\AdminBundle\Metadata\FormMetadata\TypedFormMetadata;
 use Sulu\Bundle\AdminBundle\Metadata\MetadataProviderInterface;
 
@@ -16,18 +17,23 @@ class AssistantContextBuilder
 {
     private const MAX_TEXT_LENGTH = 4000;
 
+    /**
+     * @param array<string, array{instanceOf: string}> $seoForms the sulu_content.content_seo_forms parameter
+     */
     public function __construct(
         private MetadataProviderInterface $formMetadataProvider,
         private TemplateSchemaSerializer $schemaSerializer,
+        private array $seoForms = [],
     ) {
     }
 
     /**
      * @param array<string, mixed> $formData
+     * @param list<string> $availableTabs
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function build(string $template, string $locale, array $formData, AiSetting $setting): array
+    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = []): array
     {
         $typedFormMetadata = $this->formMetadataProvider->getMetadata('page', $locale, []);
         if (!$typedFormMetadata instanceof TypedFormMetadata) {
@@ -46,7 +52,46 @@ class AssistantContextBuilder
         $schema = $this->schemaSerializer->serialize($formMetadata);
 
         return [
-            'systemPrompt' => $this->systemPrompt($schema, $this->compact($formData), $locale, $template, $setting),
+            'systemPrompt' => $this->systemPrompt(
+                $schema,
+                $this->compact($formData),
+                \sprintf('The user is editing a page (locale "%s", template "%s"), on the "content" tab.', $locale, $template),
+                $setting,
+                $availableTabs,
+                'content'
+            ),
+            'schema' => $schema,
+        ];
+    }
+
+    /**
+     * Context for the SEO tab of the page edit form. The schema comes from the
+     * "content_seo" admin form (merged from all tagged SEO forms), whose
+     * property names may contain slashes (e.g. "seo/title").
+     *
+     * @param array<string, mixed> $formData
+     * @param list<string> $availableTabs
+     *
+     * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
+     */
+    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = []): array
+    {
+        $formMetadata = $this->formMetadataProvider->getMetadata('content_seo', $locale, ['forms' => \array_keys($this->seoForms)]);
+        if (!$formMetadata instanceof FormMetadata) {
+            throw new \RuntimeException('SEO form metadata is not available.');
+        }
+
+        $schema = $this->schemaSerializer->serialize($formMetadata);
+
+        return [
+            'systemPrompt' => $this->systemPrompt(
+                $schema,
+                $this->compact($formData),
+                \sprintf('The user is editing the SEO tab of a page (locale "%s").', $locale),
+                $setting,
+                $availableTabs,
+                'seo'
+            ),
             'schema' => $schema,
         ];
     }
@@ -57,6 +102,7 @@ class AssistantContextBuilder
     public function buildGlobalPrompt(AiSetting $setting): string
     {
         $navigationGuidance = $this->navigationGuidance();
+        $multiStepGuidance = $this->multiStepGuidance();
 
         $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
@@ -64,10 +110,12 @@ class AssistantContextBuilder
 
             {$navigationGuidance}
 
+            {$multiStepGuidance}
+
             Rules:
             - Answer in the language the user writes in.
             - When the user wants to open or edit something, call search_content to find it, then call propose_navigation so the user can open it with one click.
-            - If the user asks you to change content directly, explain that you can only edit on the content edit form and offer to navigate there.
+            - If the user asks you to change content, call search_content to find it, then call propose_navigation with "resume": true - after the user opens the page you are called again with its edit context and can propose the actual edits there.
             PROMPT;
 
         return $this->appendBranding($prompt, $setting);
@@ -124,16 +172,19 @@ class AssistantContextBuilder
     /**
      * @param array<string, mixed> $schema
      * @param mixed $formData
+     * @param list<string> $availableTabs
      */
-    private function systemPrompt(array $schema, mixed $formData, string $locale, string $template, AiSetting $setting): string
+    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab): string
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
         $navigationGuidance = $this->navigationGuidance();
+        $multiStepGuidance = $this->multiStepGuidance(\count($availableTabs) >= 2);
+        $tabGuidance = $this->tabGuidance($availableTabs, $currentTab);
 
         $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
-            The user is editing a page (locale "{$locale}", template "{$template}").
+            {$intro}
 
             Below you find:
             1. TEMPLATE SCHEMA - every editable property of this page. For block properties, "blockTypes" lists the allowed block types with the fields of each type.
@@ -150,10 +201,15 @@ class AssistantContextBuilder
               {"op": "moveBlock", "path": "/<blockProperty>", "from": <position>, "to": <position>} - move a block
             - Indices refer to the state after the previous operations in the same list have been applied.
             - Only use properties, fields and block types that exist in the TEMPLATE SCHEMA. Never invent new ones.
+            - Property names may contain slashes (e.g. "seo/title") - use them verbatim: {"op": "set", "path": "/seo/title", ...}. For such properties the value is nested in CURRENT PAGE DATA (path "/seo/title" reads data.seo.title).
             - Keep values in the format the field type expects (e.g. HTML for "text_editor" fields, plain text for "text_line" fields).
             - Do not change the "url" property unless the user explicitly asks for it.
 
             {$navigationGuidance}
+
+            {$multiStepGuidance}
+
+            {$tabGuidance}
 
             TEMPLATE SCHEMA:
             {$schemaJson}
@@ -163,6 +219,39 @@ class AssistantContextBuilder
             PROMPT;
 
         return $this->appendBranding($prompt, $setting);
+    }
+
+    private function multiStepGuidance(bool $tabSwitchingAvailable = false): string
+    {
+        // Only advertise switch_tab when the tool is actually registered for
+        // this request, so the model never plans around an unavailable tool.
+        $examples = $tabSwitchingAvailable
+            ? 'editing a page that is not open yet (propose_navigation first) or fields that live on another tab (switch_tab first)'
+            : 'editing a page that is not open yet (propose_navigation first)';
+
+        return <<<GUIDANCE
+            Multi-step tasks:
+            - Some requests take several steps, e.g. {$examples}.
+            - Propose one action per turn. Set "resume": true on the action whenever the overall task is not finished after it - once the user approves the action you are automatically called again with the updated context and can continue.
+            - If the user rejects a proposed action, the whole task is aborted. Do not retry unless the user asks again.
+            - When the requested work is complete, reply with a short plain-text confirmation and no tool call.
+            GUIDANCE;
+    }
+
+    /**
+     * @param list<string> $availableTabs
+     */
+    private function tabGuidance(array $availableTabs, string $currentTab): string
+    {
+        if (\count($availableTabs) < 2) {
+            return '';
+        }
+
+        return \sprintf(
+            "Tabs:\n- This edit form has the tabs: %s. The user is on the \"%s\" tab.\n- Page content fields live on the \"content\" tab; SEO metadata (meta title, description, keywords, canonical URL, robots flags) lives on the \"seo\" tab.\n- You can only edit fields of the current tab. To edit fields of another tab, call switch_tab (with \"resume\": true when you still have edits to make after switching).",
+            \implode(', ', $availableTabs),
+            $currentTab
+        );
     }
 
     /**

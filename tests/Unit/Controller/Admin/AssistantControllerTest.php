@@ -18,10 +18,12 @@ use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator;
+use Marcostastny\SuluAIBundle\Service\Assistant\SseStream;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Sulu\Bundle\SecurityBundle\Entity\User;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -34,6 +36,9 @@ class AssistantControllerTest extends TestCase
     private ChatSessionRepository $sessionRepository;
     private SessionTitleGenerator $titleGenerator;
     private TokenStorage $tokenStorage;
+
+    /** @var list<string> */
+    private array $sseFrames = [];
 
     private function controller(
         ?AiSetting $setting,
@@ -73,7 +78,10 @@ class AssistantControllerTest extends TestCase
             $this->sessionRepository,
             $this->titleGenerator,
             $this->tokenStorage,
-            new NullLogger()
+            new NullLogger(),
+            new SseStream(function (string $frame): void {
+                $this->sseFrames[] = $frame;
+            })
         );
     }
 
@@ -514,5 +522,87 @@ class AssistantControllerTest extends TestCase
 
         $decoded = \json_decode((string) $response->getContent(), true);
         $this->assertSame([$queryResultAction], $decoded['actions']);
+    }
+
+    public function testStreamActionReturns400WithoutMessages(): void
+    {
+        $response = $this->controller($this->enabledSetting())->streamAction($this->jsonRequest([]));
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertInstanceOf(JsonResponse::class, $response);
+    }
+
+    public function testStreamActionEmitsAgentEventsAndResultFrame(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(
+            function ($apiUrl, $apiKey, $model, $systemPrompt, $messages, $validateOps, $tabs, $validateCreation, $onEvent): array {
+                $onEvent(['type' => 'status', 'tool' => 'search_content']);
+                $onEvent(['type' => 'delta', 'text' => 'Hal']);
+                $onEvent(['type' => 'delta', 'text' => 'lo']);
+
+                return ['reply' => 'Hallo', 'actions' => []];
+            }
+        );
+        $controller = $this->controller($this->enabledSetting(), $contextBuilder, $agent);
+
+        $response = $controller->streamAction($this->jsonRequest([
+            'messages' => [['role' => 'user', 'content' => 'Hi']],
+        ]));
+
+        $this->assertSame('text/event-stream', $response->headers->get('Content-Type'));
+        $this->assertSame('no', $response->headers->get('X-Accel-Buffering'));
+
+        $response->sendContent();
+        $output = \implode('', $this->sseFrames);
+
+        $this->assertStringContainsString("event: status\ndata: {\"tool\":\"search_content\"}", $output);
+        $this->assertStringContainsString("event: delta\ndata: {\"text\":\"Hal\"}", $output);
+        $this->assertStringContainsString("event: delta\ndata: {\"text\":\"lo\"}", $output);
+        $this->assertStringContainsString('event: result', $output);
+        $this->assertStringContainsString('"reply":"Hallo"', $output);
+    }
+
+    public function testStreamActionPersistsSessionIntoResultFrame(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturn(['reply' => 'Hallo', 'actions' => []]);
+        $controller = $this->controller($this->enabledSetting(), $contextBuilder, $agent);
+        $user = $this->authenticate();
+
+        $session = new ChatSession($user);
+        $property = new \ReflectionProperty(ChatSession::class, 'id');
+        $property->setValue($session, 7);
+        $this->sessionRepository->method('createForUser')->willReturn($session);
+        $this->titleGenerator->method('generate')->willReturn('Kurzer Titel');
+
+        $controller->streamAction($this->jsonRequest([
+            'messages' => [['role' => 'user', 'content' => 'Hi']],
+        ]))->sendContent();
+
+        $output = \implode('', $this->sseFrames);
+        $this->assertStringContainsString('"sessionId":7', $output);
+        $this->assertStringContainsString('"sessionTitle":"Kurzer Titel"', $output);
+    }
+
+    public function testStreamActionEmitsErrorFrameWhenAgentThrows(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willThrowException(new \RuntimeException('boom'));
+        $controller = $this->controller($this->enabledSetting(), $contextBuilder, $agent);
+
+        $controller->streamAction($this->jsonRequest([
+            'messages' => [['role' => 'user', 'content' => 'Hi']],
+        ]))->sendContent();
+
+        $output = \implode('', $this->sseFrames);
+        $this->assertStringContainsString('event: error', $output);
+        $this->assertStringContainsString('boom', $output);
     }
 }

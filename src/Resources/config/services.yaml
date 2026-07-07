@@ -102,6 +102,8 @@ services:
 
     Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent: ~
 
+    Marcostastny\SuluAIBundle\Service\Assistant\SseStream: ~
+
     Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator: ~
 
     Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder:

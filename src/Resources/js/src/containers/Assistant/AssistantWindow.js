@@ -13,6 +13,14 @@ import QueryResultCard from './QueryResultCard';
 import CreationCard from './CreationCard';
 import styles from './assistantWindow.scss';
 
+// Server tools whose execution is announced via stream status events.
+const STATUS_KEYS = {
+    'search_content': 'sulu_ai.assistant_status_search_content',
+    'list_data_tables': 'sulu_ai.assistant_status_list_data_tables',
+    'run_select_query': 'sulu_ai.assistant_status_run_select_query',
+    'resolve_url': 'sulu_ai.assistant_status_resolve_url',
+};
+
 @observer
 class AssistantWindow extends React.Component {
     @observable inputValue = '';
@@ -20,9 +28,12 @@ class AssistantWindow extends React.Component {
     scrollSignature = '';
 
     componentDidUpdate() {
-        // Only scroll on a new message or when the thinking indicator toggles —
+        // Only scroll on a new message, indicator toggle, or stream progress —
         // not on every keystroke (inputValue is an observable read in render()).
-        const signature = assistantContextStore.messages.length + ':' + (assistantContextStore.loading ? '1' : '0');
+        const signature = assistantContextStore.messages.length
+            + ':' + (assistantContextStore.loading ? '1' : '0')
+            + ':' + assistantContextStore.streamText.length
+            + ':' + (assistantContextStore.streamStatus || '');
         if (signature === this.scrollSignature) {
             return;
         }
@@ -79,6 +90,12 @@ class AssistantWindow extends React.Component {
             this.handleSend();
         }
     };
+
+    renderStatusLabel() {
+        const status = assistantContextStore.streamStatus;
+
+        return translate((status && STATUS_KEYS[status]) || 'sulu_ai.assistant_thinking');
+    }
 
     renderIntro() {
         const keys = buildIntroKeys(assistantContextStore.capabilities);
@@ -231,8 +248,13 @@ class AssistantWindow extends React.Component {
                         this.renderIntro()
                     }
                     {assistantContextStore.messages.map(this.renderMessage)}
-                    {assistantContextStore.loading &&
-                        <div className={styles.assistantMessage}>{translate('sulu_ai.assistant_thinking')}</div>
+                    {assistantContextStore.loading && !!assistantContextStore.streamText &&
+                        <div className={styles.messageRow}>
+                            <div className={styles.assistantMessage}>{assistantContextStore.streamText}</div>
+                        </div>
+                    }
+                    {assistantContextStore.loading && !assistantContextStore.streamText &&
+                        <div className={styles.assistantMessage}>{this.renderStatusLabel()}</div>
                     }
                     <div ref={this.messagesEndRef} />
                 </div>

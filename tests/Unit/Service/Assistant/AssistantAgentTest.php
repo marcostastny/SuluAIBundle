@@ -552,4 +552,105 @@ class AssistantAgentTest extends TestCase
 
         $this->runAgent($this->agent($client));
     }
+
+    private function sseTextResponse(string $content): MockResponse
+    {
+        $frames = '';
+        foreach (\str_split($content, 4) as $piece) {
+            $frames .= 'data: ' . \json_encode(['choices' => [['delta' => ['content' => $piece]]]]) . "\n\n";
+        }
+
+        return new MockResponse($frames . "data: [DONE]\n\n");
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    private function sseToolCallResponse(string $name, array $arguments, string $id = 'call_1', string $content = ''): MockResponse
+    {
+        $frames = '';
+        if ('' !== $content) {
+            $frames .= 'data: ' . \json_encode(['choices' => [['delta' => ['content' => $content]]]]) . "\n\n";
+        }
+        $delta = ['tool_calls' => [[
+            'index' => 0,
+            'id' => $id,
+            'type' => 'function',
+            'function' => ['name' => $name, 'arguments' => (string) \json_encode($arguments)],
+        ]]];
+        $frames .= 'data: ' . \json_encode(['choices' => [['delta' => $delta]]]) . "\n\n";
+
+        return new MockResponse($frames . "data: [DONE]\n\n");
+    }
+
+    public function testOnEventReceivesDeltasForFinalText(): void
+    {
+        $client = new MockHttpClient([$this->sseTextResponse('Hallo zusammen')]);
+        $events = [];
+
+        $result = $this->agent($client)->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
+            ['role' => 'user', 'content' => 'Hi'],
+        ], null, null, null, function (array $event) use (&$events): void {
+            $events[] = $event;
+        });
+
+        $this->assertSame('Hallo zusammen', $result['reply']);
+        $deltas = \array_values(\array_filter($events, static fn (array $event) => 'delta' === $event['type']));
+        $this->assertSame('Hallo zusammen', \implode('', \array_column($deltas, 'text')));
+    }
+
+    public function testOnEventEmitsStatusForServerToolAndResetForStreamedInterimText(): void
+    {
+        // iteration 1 streams interim text and a server tool call; iteration 2 answers
+        $client = new MockHttpClient([
+            $this->sseToolCallResponse('search_content', ['query' => 'zimmer'], 'call_1', 'Ich schaue nach'),
+            $this->sseTextResponse('Fertig'),
+        ]);
+        $events = [];
+
+        $result = $this->agent($client, $this->collectingTool())
+            ->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
+                ['role' => 'user', 'content' => 'Hi'],
+            ], null, null, null, function (array $event) use (&$events): void {
+                $events[] = $event;
+            });
+
+        $this->assertSame('Fertig', $result['reply']);
+        $types = \array_column($events, 'type');
+        $this->assertContains('status', $types);
+        $this->assertContains('reset', $types);
+        $statusIndex = \array_search('status', $types, true);
+        $this->assertSame('search_content', $events[$statusIndex]['tool']);
+        // the reset follows the tool status, before the final text streams
+        $resetIndex = \array_search('reset', $types, true);
+        $this->assertGreaterThan($statusIndex, $resetIndex);
+    }
+
+    public function testOnEventEmitsNoResetWithoutStreamedInterimText(): void
+    {
+        $client = new MockHttpClient([
+            $this->sseToolCallResponse('search_content', ['query' => 'zimmer']),
+            $this->sseTextResponse('Fertig'),
+        ]);
+        $events = [];
+
+        $this->agent($client, $this->collectingTool())
+            ->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
+                ['role' => 'user', 'content' => 'Hi'],
+            ], null, null, null, function (array $event) use (&$events): void {
+                $events[] = $event;
+            });
+
+        $this->assertNotContains('reset', \array_column($events, 'type'));
+    }
+
+    public function testRunWithoutOnEventStillUsesBlockingCompletion(): void
+    {
+        // a plain JSON (non-SSE) body must still work when no callback is passed
+        $client = new MockHttpClient([$this->textResponse('Plain')]);
+
+        $result = $this->runAgent($this->agent($client));
+
+        $this->assertSame('Plain', $result['reply']);
+    }
 }

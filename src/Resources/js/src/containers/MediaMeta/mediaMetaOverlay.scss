@@ -1,0 +1,24 @@
+.content {
+    min-width: 400px;
+}
+
+.progress {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.summary .warning {
+    color: #e3524f;
+}
+
+.errors {
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+
+    ul {
+        margin: 5px 0 0;
+        padding-left: 20px;
+    }
+}

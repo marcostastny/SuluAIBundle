@@ -7,6 +7,7 @@ import {MetaGeneratorToolbarAction, AssistantFormBridge} from './containers';
 import AssistantWindow from './containers/Assistant';
 import ImageGeneratorOverlay from './containers/ImageGenerator';
 import Launcher from './containers/Launcher';
+import MediaMetaOverlay from './containers/MediaMeta';
 import assistantContextStore from './stores/assistantContextStore';
 import routerStore from './stores/routerStore';
 import imageGeneratorStore from './stores/imageGeneratorStore';
@@ -69,6 +70,12 @@ initializer.addUpdateConfigHook('sulu_admin', (config, initialized) => {
         if (document.body) {
             document.body.appendChild(launcherContainer);
             render(<Launcher />, launcherContainer);
+        }
+
+        const mediaMetaContainer = document.createElement('div');
+        if (document.body) {
+            document.body.appendChild(mediaMetaContainer);
+            render(<MediaMetaOverlay />, mediaMetaContainer);
         }
     }
 });

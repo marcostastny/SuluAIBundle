@@ -34,6 +34,10 @@ class AssistantAgent
      * @param (callable(array<string, mixed>): array)|null $validateCreation returns ['action' => …] or
      *                                                                       ['errors' => …]; null disables
      *                                                                       propose_page_creation
+     * @param (callable(array<string, mixed>): void)|null $onEvent receives progress events
+     *                                                             (delta/status/reset) while the loop
+     *                                                             runs; also switches the completion
+     *                                                             requests to streaming mode
      *
      * @return array{reply: string, actions: list<array<string, mixed>>}
      */
@@ -45,7 +49,8 @@ class AssistantAgent
         array $messages,
         ?callable $validateOps,
         ?array $tabs = null,
-        ?callable $validateCreation = null
+        ?callable $validateCreation = null,
+        ?callable $onEvent = null
     ): array {
         $this->targetCollector->reset();
 
@@ -69,12 +74,16 @@ class AssistantAgent
         $creationRetried = false;
 
         for ($iteration = 0; $iteration < self::MAX_ITERATIONS; ++$iteration) {
-            $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools);
+            $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools, $onEvent);
             $toolCalls = $message['tool_calls'] ?? [];
 
             if (!\is_array($toolCalls) || [] === $toolCalls) {
                 return ['reply' => \trim((string) ($message['content'] ?? '')), 'actions' => []];
             }
+
+            // Content streamed in this iteration is interim thinking when the
+            // loop continues; the client clears it on the reset event.
+            $streamedText = null !== $onEvent && '' !== \trim((string) ($message['content'] ?? ''));
 
             $conversation[] = $message;
 
@@ -83,6 +92,9 @@ class AssistantAgent
                     continue;
                 }
                 $name = (string) ($toolCall['function']['name'] ?? '');
+                if (null !== $onEvent) {
+                    $onEvent(['type' => 'status', 'tool' => $name]);
+                }
                 $arguments = \json_decode((string) ($toolCall['function']['arguments'] ?? '{}'), true);
                 $arguments = \is_array($arguments) ? $arguments : [];
 
@@ -270,6 +282,10 @@ class AssistantAgent
                     'content' => (string) \json_encode($result),
                 ];
             }
+
+            if ($streamedText && null !== $onEvent) {
+                $onEvent(['type' => 'reset']);
+            }
         }
 
         return [
@@ -284,13 +300,14 @@ class AssistantAgent
      *
      * @return array<string, mixed> the assistant message from the first choice
      */
-    private function requestCompletion(string $apiUrl, string $apiKey, string $model, array $conversation, array $tools): array
+    private function requestCompletion(string $apiUrl, string $apiKey, string $model, array $conversation, array $tools, ?callable $onEvent = null): array
     {
-        $data = $this->client->postJson($apiUrl, $apiKey, '/chat/completions', [
-            'model' => $model,
-            'messages' => $conversation,
-            'tools' => $tools,
-        ]);
+        $payload = ['model' => $model, 'messages' => $conversation, 'tools' => $tools];
+        $data = null !== $onEvent
+            ? $this->client->postJsonStreamed($apiUrl, $apiKey, '/chat/completions', $payload, static function (string $fragment) use ($onEvent): void {
+                $onEvent(['type' => 'delta', 'text' => $fragment]);
+            })
+            : $this->client->postJson($apiUrl, $apiKey, '/chat/completions', $payload);
 
         $message = $data['choices'][0]['message'] ?? null;
         if (!\is_array($message)) {

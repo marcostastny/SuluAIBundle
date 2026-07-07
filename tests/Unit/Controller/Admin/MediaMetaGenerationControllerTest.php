@@ -262,4 +262,45 @@ class MediaMetaGenerationControllerTest extends TestCase
         $decoded = \json_decode((string) $response->getContent(), true);
         $this->assertSame([['id' => 99, 'reason' => 'not-found']], $decoded['skipped']);
     }
+
+    public function testGeneratorUsesDedicatedMediaMetaModelWhenConfigured(): void
+    {
+        $setting = $this->setting();
+        $setting->setMediaMetaModel('gemini/vision-test');
+
+        $controller = $this->controller($setting);
+        $this->mediaRepository->method('findBy')->willReturn([$this->mediaEntity(1)]);
+
+        $models = [];
+        $this->generator->method('generate')->willReturnCallback(
+            static function (string $apiUrl, string $apiKey, string $model) use (&$models): array {
+                $models[] = $model;
+
+                return self::GENERATED;
+            }
+        );
+
+        $controller->postBatchAction($this->jsonRequest(['mode' => 'selected', 'ids' => [1]]));
+
+        $this->assertSame(['gemini/vision-test'], $models);
+    }
+
+    public function testGeneratorFallsBackToChatModelWithoutMediaMetaModel(): void
+    {
+        $controller = $this->controller($this->setting());
+        $this->mediaRepository->method('findBy')->willReturn([$this->mediaEntity(1)]);
+
+        $models = [];
+        $this->generator->method('generate')->willReturnCallback(
+            static function (string $apiUrl, string $apiKey, string $model) use (&$models): array {
+                $models[] = $model;
+
+                return self::GENERATED;
+            }
+        );
+
+        $controller->postBatchAction($this->jsonRequest(['mode' => 'selected', 'ids' => [1]]));
+
+        $this->assertSame(['gpt-test'], $models);
+    }
 }

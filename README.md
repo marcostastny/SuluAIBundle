@@ -145,10 +145,13 @@ the project — and the router's API key is the only one the bundle needs.
 every proposed change is validated server-side, and the user approves each
 step — raw model size buys little here, while latency is felt in every chat
 turn. A quick, small model is the sweet spot: the agent runs well on
-`gemini/gemini-3.1-flash-lite`. Pick a model that accepts image input
-(vision): the same model also writes media titles and alt texts from image
-previews (*Generate meta with AI* in the media library), which fails on
-text-only models.
+`gemini/gemini-3.1-flash-lite`.
+
+**Media meta model.** Media titles and alt texts are generated from image
+previews, so that call needs a model that accepts image input (vision). Set
+the optional **Media meta model** to a small vision model such as
+`gemini/gemini-3.1-flash`; when the field is empty the chat model is used —
+which must then be vision-capable itself, or media meta generation fails.
 
 **Image models.** Prefer models with reference-image support (toggle
 *Supports reference images*) so editors can restyle existing media and keep a

@@ -43,6 +43,15 @@ class AiSetting implements AuditableInterface
     #[Serializer\Expose]
     private ?string $model = null;
 
+    /**
+     * Optional dedicated vision model for media meta generation (image titles
+     * and alt texts). When unset, the main chat model is used, which must then
+     * accept image input.
+     */
+    #[ORM\Column(type: 'string', nullable: true)]
+    #[Serializer\Expose]
+    private ?string $mediaMetaModel = null;
+
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Serializer\Expose]
     private ?bool $enabled = false;
@@ -137,6 +146,27 @@ class AiSetting implements AuditableInterface
         $this->model = $model;
 
         return $this;
+    }
+
+    public function getMediaMetaModel(): ?string
+    {
+        return $this->mediaMetaModel;
+    }
+
+    public function setMediaMetaModel(?string $mediaMetaModel): self
+    {
+        $this->mediaMetaModel = $mediaMetaModel;
+
+        return $this;
+    }
+
+    /**
+     * Model to use for media meta generation: the dedicated vision model when
+     * configured, otherwise the main chat model.
+     */
+    public function getEffectiveMediaMetaModel(): string
+    {
+        return '' !== (string) $this->mediaMetaModel ? (string) $this->mediaMetaModel : (string) $this->model;
     }
 
     public function isEnabled(): bool

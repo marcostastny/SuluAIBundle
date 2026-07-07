@@ -135,5 +135,10 @@
     "sulu_ai.assistant_chip_seo": "Generate SEO metadata for this page",
     "sulu_ai.assistant_chip_publish": "Publish this page",
     "sulu_ai.assistant_chip_submissions": "How many form submissions were there this month?",
-    "sulu_ai.assistant_chip_create": "Create a new page"
+    "sulu_ai.assistant_chip_create": "Create a new page",
+    "sulu_ai.assistant_publish": "Publish",
+    "sulu_ai.assistant_unpublish": "Unpublish",
+    "sulu_ai.assistant_published": "Published.",
+    "sulu_ai.assistant_unpublished": "Unpublished.",
+    "sulu_ai.assistant_publish_failed": "The action failed. Please try again."
 }

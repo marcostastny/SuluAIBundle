@@ -135,5 +135,10 @@
     "sulu_ai.assistant_chip_seo": "Erstelle SEO-Metadaten für diese Seite",
     "sulu_ai.assistant_chip_publish": "Veröffentliche diese Seite",
     "sulu_ai.assistant_chip_submissions": "Wie viele Formular-Einsendungen gab es diesen Monat?",
-    "sulu_ai.assistant_chip_create": "Lege eine neue Seite an"
+    "sulu_ai.assistant_chip_create": "Lege eine neue Seite an",
+    "sulu_ai.assistant_publish": "Veröffentlichen",
+    "sulu_ai.assistant_unpublish": "Zurückziehen",
+    "sulu_ai.assistant_published": "Veröffentlicht.",
+    "sulu_ai.assistant_unpublished": "Zurückgezogen.",
+    "sulu_ai.assistant_publish_failed": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen."
 }

@@ -334,6 +334,9 @@ class AssistantContextStore {
             if (responseAction.type === 'createPage') {
                 return {...base, creating: false, failed: false};
             }
+            if (responseAction.type === 'publishPage') {
+                return {...base, publishing: false, failed: false};
+            }
 
             return base;
         });

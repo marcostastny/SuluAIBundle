@@ -11,6 +11,7 @@ import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
 import QueryResultCard from './QueryResultCard';
 import CreationCard from './CreationCard';
+import PublishCard from './PublishCard';
 import styles from './assistantWindow.scss';
 
 // Server tools whose execution is announced via stream status events.
@@ -185,6 +186,12 @@ class AssistantWindow extends React.Component {
                     .filter((messageAction) => messageAction.type === 'createPage')
                     .map((messageAction, actionIndex) => (
                         <CreationCard action={messageAction} key={'create-' + actionIndex} message={message} />
+                    ))
+                }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'publishPage')
+                    .map((messageAction, actionIndex) => (
+                        <PublishCard action={messageAction} key={'publish-' + actionIndex} message={message} />
                     ))
                 }
             </div>

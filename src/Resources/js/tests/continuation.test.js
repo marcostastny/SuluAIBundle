@@ -5,6 +5,7 @@ import {
     contextMatchesExpectation,
     creationContinuationMessage,
     navigationContinuationMessage,
+    publishContinuationMessage,
     tabSwitchContinuationMessage,
 } from '../src/utils/continuation';
 
@@ -12,6 +13,15 @@ test('creationContinuationMessage mentions the new page and continuing', () => {
     const message = creationContinuationMessage('Wellness Weekend');
     expect(message).toContain('Wellness Weekend');
     expect(message).toContain('Continue');
+});
+
+test('publishContinuationMessage names the page and the mode', () => {
+    const published = publishContinuationMessage('Zimmer & Preise', 'publish');
+    expect(published).toContain('Zimmer & Preise');
+    expect(published).toContain('published');
+    expect(published).toContain('Continue');
+
+    expect(publishContinuationMessage('Zimmer & Preise', 'unpublish')).toContain('unpublished');
 });
 
 describe('continuation messages', () => {

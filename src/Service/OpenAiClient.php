@@ -38,6 +38,90 @@ class OpenAiClient
     }
 
     /**
+     * Streams a chat completion ('stream' => true) and reassembles it into the
+     * non-streaming response shape while forwarding content fragments.
+     *
+     * @param array<string, mixed> $json
+     * @param callable(string): void $onDelta called for each content fragment
+     * @param array<string, mixed> $options extra HttpClient options
+     *
+     * @return array{choices: array{0: array{message: array<string, mixed>}}}
+     */
+    public function postJsonStreamed(string $apiUrl, string $apiKey, string $path, array $json, callable $onDelta, array $options = []): array
+    {
+        $response = $this->httpClient->request('POST', $this->endpoint($apiUrl, $path), $options + [
+            'auth_bearer' => $apiKey,
+            'json' => ['stream' => true] + $json,
+        ]);
+
+        if ($response->getStatusCode() >= 400) {
+            return $this->decode($response); // throws with the API's error message
+        }
+
+        $role = 'assistant';
+        $content = '';
+        $toolCalls = [];
+        $buffer = '';
+
+        foreach ($this->httpClient->stream($response) as $chunk) {
+            $buffer .= $chunk->getContent();
+
+            while (false !== ($newline = \strpos($buffer, "\n"))) {
+                $line = \rtrim(\substr($buffer, 0, $newline), "\r");
+                $buffer = \substr($buffer, $newline + 1);
+
+                if (!\str_starts_with($line, 'data:')) {
+                    continue;
+                }
+                $payload = \trim(\substr($line, 5));
+                if ('' === $payload || '[DONE]' === $payload) {
+                    continue;
+                }
+                $data = \json_decode($payload, true);
+                $delta = \is_array($data) ? ($data['choices'][0]['delta'] ?? null) : null;
+                if (!\is_array($delta)) {
+                    continue;
+                }
+
+                if (\is_string($delta['role'] ?? null) && '' !== $delta['role']) {
+                    $role = $delta['role'];
+                }
+                if (\is_string($delta['content'] ?? null) && '' !== $delta['content']) {
+                    $content .= $delta['content'];
+                    $onDelta($delta['content']);
+                }
+                foreach (\is_array($delta['tool_calls'] ?? null) ? $delta['tool_calls'] : [] as $toolCallDelta) {
+                    if (!\is_array($toolCallDelta)) {
+                        continue;
+                    }
+                    $index = (int) ($toolCallDelta['index'] ?? 0);
+                    if (!isset($toolCalls[$index])) {
+                        $toolCalls[$index] = ['id' => '', 'type' => 'function', 'function' => ['name' => '', 'arguments' => '']];
+                    }
+                    if (\is_string($toolCallDelta['id'] ?? null) && '' !== $toolCallDelta['id']) {
+                        $toolCalls[$index]['id'] = $toolCallDelta['id'];
+                    }
+                    $function = \is_array($toolCallDelta['function'] ?? null) ? $toolCallDelta['function'] : [];
+                    if (\is_string($function['name'] ?? null) && '' !== $function['name']) {
+                        $toolCalls[$index]['function']['name'] = $function['name'];
+                    }
+                    if (\is_string($function['arguments'] ?? null)) {
+                        $toolCalls[$index]['function']['arguments'] .= $function['arguments'];
+                    }
+                }
+            }
+        }
+
+        $message = ['role' => $role, 'content' => '' !== $content ? $content : null];
+        if ([] !== $toolCalls) {
+            \ksort($toolCalls);
+            $message['tool_calls'] = \array_values($toolCalls);
+        }
+
+        return ['choices' => [['message' => $message]]];
+    }
+
+    /**
      * @param array<string, mixed> $options extra HttpClient options (e.g. timeout/max_duration
      *                                      for slow endpoints such as image generation)
      *

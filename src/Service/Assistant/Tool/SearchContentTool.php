@@ -9,10 +9,12 @@ use Marcostastny\SuluAIBundle\Service\Assistant\AssistantToolInterface;
 use Marcostastny\SuluAIBundle\Service\Assistant\FormTitleSearcher;
 use Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\NavigationTargetResolver;
+use Marcostastny\SuluAIBundle\Service\Assistant\WebsiteIndexSearcher;
 
 /**
  * Lets the assistant find existing content. Index-backed types come from the
- * SEAL admin index (permission-filtered), forms from a Doctrine title lookup.
+ * SEAL admin index (titles, permission-filtered) merged with the website
+ * index (full text of published pages), forms from a Doctrine title lookup.
  * Full navigation targets are recorded in the collector; the model only sees
  * type/id/locale/title so it must reference results instead of inventing routes.
  */
@@ -26,6 +28,7 @@ class SearchContentTool implements AssistantToolInterface
      */
     public function __construct(
         private AdminIndexSearcher $indexSearcher,
+        private WebsiteIndexSearcher $websiteSearcher,
         private FormTitleSearcher $formSearcher,
         private NavigationTargetResolver $targetResolver,
         private NavigationTargetCollector $targetCollector,
@@ -44,7 +47,7 @@ class SearchContentTool implements AssistantToolInterface
             'type' => 'function',
             'function' => [
                 'name' => 'search_content',
-                'description' => 'Search the CMS for existing content by title or text. Returns matching items with their type, id, locale and title. Always use this before proposing navigation.',
+                'description' => 'Search the CMS for existing content. Matches the titles of all content types and the full text of published pages. Returns matching items with their type, id, locale and title. Always use this before proposing navigation. When a search returns no results, retry with broader or related terms (a synonym, the likely page title or section name) before telling the user nothing was found.',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
@@ -89,25 +92,34 @@ class SearchContentTool implements AssistantToolInterface
         if ([] !== $indexTypes) {
             try {
                 foreach ($this->indexSearcher->search($query, $indexTypes, $locale, self::LIMIT) as $document) {
-                    $target = $this->targetResolver->resolve($document);
-                    if (null === $target) {
-                        continue;
+                    $result = $this->documentResult($document);
+                    if (null !== $result) {
+                        $results[] = $result;
                     }
-
-                    $results[] = [
-                        'type' => (string) ($document['resourceKey'] ?? ''),
-                        'id' => (string) ($document['resourceId'] ?? ''),
-                        'locale' => (string) ($document['locale'] ?? ''),
-                        'title' => (string) ($document['title'] ?? ''),
-                        'view' => $target['view'],
-                        'attributes' => $target['attributes'],
-                    ];
                 }
             } catch (\Throwable) {
                 return [
                     'results' => [],
                     'note' => 'The search index is unavailable. Tell the user that searching is currently not possible.',
                 ];
+            }
+
+            try {
+                $seen = [];
+                foreach ($results as $result) {
+                    $seen[$result['type'] . ':' . $result['id'] . ':' . $result['locale']] = true;
+                }
+                foreach ($this->websiteSearcher->search($query, $indexTypes, $locale, self::LIMIT) as $document) {
+                    $result = $this->documentResult($document);
+                    if (null === $result || isset($seen[$result['type'] . ':' . $result['id'] . ':' . $result['locale']])) {
+                        continue;
+                    }
+                    $seen[$result['type'] . ':' . $result['id'] . ':' . $result['locale']] = true;
+                    $results[] = $result;
+                }
+            } catch (\Throwable) {
+                // The title matches above are still useful without the
+                // full-text index — degrade silently.
             }
         }
 
@@ -136,6 +148,28 @@ class SearchContentTool implements AssistantToolInterface
         }
 
         return $response;
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     *
+     * @return array<string, mixed>|null
+     */
+    private function documentResult(array $document): ?array
+    {
+        $target = $this->targetResolver->resolve($document);
+        if (null === $target) {
+            return null;
+        }
+
+        return [
+            'type' => (string) ($document['resourceKey'] ?? ''),
+            'id' => (string) ($document['resourceId'] ?? ''),
+            'locale' => (string) ($document['locale'] ?? ''),
+            'title' => (string) ($document['title'] ?? ''),
+            'view' => $target['view'],
+            'attributes' => $target['attributes'],
+        ];
     }
 
     /**

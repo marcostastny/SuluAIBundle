@@ -60,6 +60,24 @@ services:
         arguments:
             $adminResources: '%sulu_search.admin_resources%'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $securityChecker: '@sulu_security.security_checker'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\SelectQueryValidator: ~
+    Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryRunner:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\ListDataTablesTool:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\RunSelectQueryTool: ~
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

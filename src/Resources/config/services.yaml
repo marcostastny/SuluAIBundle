@@ -83,6 +83,11 @@ services:
             $securityChecker: '@sulu_security.security_checker'
             $webspaceManager: '@sulu_core.webspace.webspace_manager'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationValidator:
+        arguments:
+            $formMetadataProvider: '@sulu_admin.form_metadata_provider'
+            $resourceLocatorGenerator: '@sulu_route.resource_locator_generator'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

@@ -20,6 +20,8 @@ use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SseStream;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Sulu\Bundle\SecurityBundle\Entity\User;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
@@ -46,7 +48,8 @@ class AssistantControllerTest extends TestCase
         ?AssistantAgent $agent = null,
         ?SecurityCheckerInterface $securityChecker = null,
         bool $dataQueryAvailable = false,
-        bool $creationAvailable = false
+        bool $creationAvailable = false,
+        ?LoggerInterface $logger = null
     ): AssistantController {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
@@ -78,7 +81,7 @@ class AssistantControllerTest extends TestCase
             $this->sessionRepository,
             $this->titleGenerator,
             $this->tokenStorage,
-            new NullLogger(),
+            $logger ?? new NullLogger(),
             new SseStream(function (string $frame): void {
                 $this->sseFrames[] = $frame;
             })
@@ -206,6 +209,47 @@ class AssistantControllerTest extends TestCase
             ['reply' => 'Hello!', 'actions' => []],
             \json_decode((string) $response->getContent(), true)
         );
+    }
+
+    public function testRejectedEditOpsAreLogged(): void
+    {
+        $logger = new class extends AbstractLogger {
+            /** @var list<array{string, string, array<string, mixed>}> */
+            public array $records = [];
+
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                $this->records[] = [(string) $level, (string) $message, $context];
+            }
+        };
+
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('build')->willReturn([
+            'systemPrompt' => 'prompt',
+            'schema' => ['fields' => ['title' => ['type' => 'text_line', 'required' => false]]],
+        ]);
+
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(function (...$args): array {
+            $validateOps = $args[5];
+            self::assertIsCallable($validateOps);
+            self::assertNotSame([], $validateOps([['op' => 'set', 'path' => '/missing', 'value' => 'x']]));
+
+            return ['reply' => 'done', 'actions' => []];
+        });
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent, logger: $logger)
+            ->postAction($this->jsonRequest([
+                'context' => ['type' => 'page', 'template' => 'default', 'locale' => 'de'],
+                'formData' => ['title' => 'T'],
+                'messages' => [['role' => 'user', 'content' => 'change it']],
+            ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $warnings = \array_values(\array_filter($logger->records, static fn (array $record) => 'warning' === $record[0]));
+        $this->assertCount(1, $warnings);
+        $this->assertArrayHasKey('errors', $warnings[0][2]);
+        $this->assertArrayHasKey('ops', $warnings[0][2]);
     }
 
     public function testSeoTabContextUsesSeoBuilderAndPassesTabs(): void

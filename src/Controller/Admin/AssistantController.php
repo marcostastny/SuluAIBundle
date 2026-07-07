@@ -16,6 +16,7 @@ use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator;
+use Marcostastny\SuluAIBundle\Service\Assistant\SseStream;
 use Psr\Log\LoggerInterface;
 use Sulu\Bundle\SecurityBundle\Entity\User;
 use Sulu\Component\Security\Authorization\PermissionTypes;
@@ -23,6 +24,7 @@ use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class AssistantController
@@ -41,10 +43,78 @@ class AssistantController
         private SessionTitleGenerator $titleGenerator,
         private TokenStorageInterface $tokenStorage,
         private LoggerInterface $logger,
+        private SseStream $sseStream,
     ) {
     }
 
     public function postAction(Request $request): Response
+    {
+        $prepared = $this->prepare($request);
+        if ($prepared instanceof JsonResponse) {
+            return $prepared;
+        }
+
+        try {
+            $result = $this->runAgent($prepared, null);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);
+        }
+
+        return new JsonResponse($this->persist($result, $prepared));
+    }
+
+    public function streamAction(Request $request): Response
+    {
+        $prepared = $this->prepare($request);
+        if ($prepared instanceof JsonResponse) {
+            return $prepared;
+        }
+
+        // Long-running response: release the session lock so parallel admin
+        // requests from the same browser are not blocked for the whole turn.
+        if ($request->hasSession() && $request->getSession()->isStarted()) {
+            $request->getSession()->save();
+        }
+
+        $response = new StreamedResponse(function () use ($prepared): void {
+            try {
+                $result = $this->runAgent($prepared, function (array $event): void {
+                    $type = (string) $event['type'];
+                    unset($event['type']);
+                    $this->sseStream->event($type, $event);
+                });
+                $result = $this->persist($result, $prepared);
+                $this->sseStream->event('result', $result);
+            } catch (\Throwable $e) {
+                // The 200 status is already on the wire; failures become frames.
+                $this->sseStream->event('error', ['message' => 'AI request failed: ' . $e->getMessage()]);
+            }
+        });
+        $response->headers->set('Content-Type', 'text/event-stream');
+        $response->headers->set('Cache-Control', 'no-cache');
+        $response->headers->set('X-Accel-Buffering', 'no');
+
+        return $response;
+    }
+
+    /**
+     * Parses and validates the request; everything the agent run and the
+     * persistence step need is bundled into one array so postAction and
+     * streamAction share the exact same pipeline.
+     *
+     * @return array{
+     *     setting: AiSetting,
+     *     systemPrompt: string,
+     *     messages: list<array{role: string, content: string}>,
+     *     rawMessages: array<int, mixed>,
+     *     validateOps: callable|null,
+     *     tabs: array{current: string, available: list<string>}|null,
+     *     validateCreation: callable|null,
+     *     session: ChatSession|null,
+     *     user: User|null,
+     * }|JsonResponse
+     */
+    private function prepare(Request $request): array|JsonResponse
     {
         $this->securityChecker->checkPermission(AiSetting::SECURITY_CONTEXT_ASSISTANT, PermissionTypes::VIEW);
 
@@ -143,48 +213,82 @@ class AssistantController
             $messages
         )));
 
+        return [
+            'setting' => $setting,
+            'systemPrompt' => $systemPrompt,
+            'messages' => $messages,
+            'rawMessages' => $rawMessages,
+            'validateOps' => $validateOps,
+            'tabs' => $tabs,
+            'validateCreation' => $validateCreation,
+            'session' => $session,
+            'user' => $user,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $prepared a non-error prepare() result
+     * @param (callable(array<string, mixed>): void)|null $onEvent
+     *
+     * @return array{reply: string, actions: list<array<string, mixed>>}
+     */
+    private function runAgent(array $prepared, ?callable $onEvent): array
+    {
         $this->queryResultCollector->reset();
 
-        try {
-            $result = $this->agent->run(
-                (string) $setting->getApiUrl(),
-                (string) $setting->getApiKey(),
-                (string) $setting->getModel(),
-                $systemPrompt,
-                $messages,
-                $validateOps,
-                $tabs,
-                $validateCreation
-            );
-        } catch (\Throwable $e) {
-            return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);
-        }
+        $setting = $prepared['setting'];
+        $result = $this->agent->run(
+            (string) $setting->getApiUrl(),
+            (string) $setting->getApiKey(),
+            (string) $setting->getModel(),
+            $prepared['systemPrompt'],
+            $prepared['messages'],
+            $prepared['validateOps'],
+            $prepared['tabs'],
+            $prepared['validateCreation'],
+            $onEvent
+        );
 
         // Titled run_select_query results are recorded out-of-band while the
         // agent loop runs; surface them as cards alongside the terminal action.
         $result['actions'] = [...$result['actions'], ...$this->queryResultCollector->all()];
 
-        if (null !== $user) {
-            try {
-                $storedMessages = $this->storedMessages($rawMessages, $result);
-                if (null === $session) {
-                    $session = $this->sessionRepository->createForUser($user);
-                    $session->setTitle($this->titleGenerator->generate(
-                        $setting,
-                        $this->firstVisibleUserMessage($storedMessages),
-                        (string) $result['reply']
-                    ));
-                }
-                $this->sessionRepository->save($session, $storedMessages);
-                $result['sessionId'] = $session->getId();
-                $result['sessionTitle'] = (string) $session->getTitle();
-            } catch (\Throwable $e) {
-                // The reply must reach the user even when persistence fails.
-                $this->logger->error('SuluAI: chat session persistence failed: ' . $e->getMessage());
-            }
+        return $result;
+    }
+
+    /**
+     * @param array{reply: string, actions: list<array<string, mixed>>} $result
+     * @param array<string, mixed> $prepared a non-error prepare() result
+     *
+     * @return array<string, mixed> the result enriched with session data
+     */
+    private function persist(array $result, array $prepared): array
+    {
+        $user = $prepared['user'];
+        if (null === $user) {
+            return $result;
         }
 
-        return new JsonResponse($result);
+        $session = $prepared['session'];
+        try {
+            $storedMessages = $this->storedMessages($prepared['rawMessages'], $result);
+            if (null === $session) {
+                $session = $this->sessionRepository->createForUser($user);
+                $session->setTitle($this->titleGenerator->generate(
+                    $prepared['setting'],
+                    $this->firstVisibleUserMessage($storedMessages),
+                    (string) $result['reply']
+                ));
+            }
+            $this->sessionRepository->save($session, $storedMessages);
+            $result['sessionId'] = $session->getId();
+            $result['sessionTitle'] = (string) $session->getTitle();
+        } catch (\Throwable $e) {
+            // The reply must reach the user even when persistence fails.
+            $this->logger->error('SuluAI: chat session persistence failed: ' . $e->getMessage());
+        }
+
+        return $result;
     }
 
     /**

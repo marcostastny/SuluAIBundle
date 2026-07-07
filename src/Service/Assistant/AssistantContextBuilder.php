@@ -33,7 +33,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false): array
+    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false): array
     {
         $typedFormMetadata = $this->formMetadataProvider->getMetadata('page', $locale, []);
         if (!$typedFormMetadata instanceof TypedFormMetadata) {
@@ -59,7 +59,8 @@ class AssistantContextBuilder
                 $setting,
                 $availableTabs,
                 'content',
-                $dataQueryAvailable
+                $dataQueryAvailable,
+                $creationAvailable
             ),
             'schema' => $schema,
         ];
@@ -75,7 +76,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false): array
+    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false): array
     {
         $formMetadata = $this->formMetadataProvider->getMetadata('content_seo', $locale, ['forms' => \array_keys($this->seoForms)]);
         if (!$formMetadata instanceof FormMetadata) {
@@ -92,7 +93,8 @@ class AssistantContextBuilder
                 $setting,
                 $availableTabs,
                 'seo',
-                $dataQueryAvailable
+                $dataQueryAvailable,
+                $creationAvailable
             ),
             'schema' => $schema,
         ];
@@ -101,11 +103,12 @@ class AssistantContextBuilder
     /**
      * System prompt for requests without an attached page form (global mode).
      */
-    public function buildGlobalPrompt(AiSetting $setting, bool $dataQueryAvailable = false): string
+    public function buildGlobalPrompt(AiSetting $setting, bool $dataQueryAvailable = false, bool $creationAvailable = false): string
     {
         $navigationGuidance = $this->navigationGuidance();
         $multiStepGuidance = $this->multiStepGuidance();
         $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
+        $creationGuidance = $this->creationGuidance($creationAvailable);
 
         $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
@@ -116,6 +119,8 @@ class AssistantContextBuilder
             {$multiStepGuidance}
 
             {$dataQueryGuidance}
+
+            {$creationGuidance}
 
             Rules:
             - Answer in the language the user writes in.
@@ -179,13 +184,14 @@ class AssistantContextBuilder
      * @param mixed $formData
      * @param list<string> $availableTabs
      */
-    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab, bool $dataQueryAvailable = false): string
+    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab, bool $dataQueryAvailable = false, bool $creationAvailable = false): string
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
         $navigationGuidance = $this->navigationGuidance();
         $multiStepGuidance = $this->multiStepGuidance(\count($availableTabs) >= 2);
         $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
+        $creationGuidance = $this->creationGuidance($creationAvailable);
         $tabGuidance = $this->tabGuidance($availableTabs, $currentTab);
 
         $prompt = <<<PROMPT
@@ -216,6 +222,8 @@ class AssistantContextBuilder
             {$multiStepGuidance}
 
             {$dataQueryGuidance}
+
+            {$creationGuidance}
 
             {$tabGuidance}
 
@@ -261,6 +269,22 @@ class AssistantContextBuilder
             - Only single SELECT statements are allowed: no CTEs/WITH, no schema-qualified names, results capped at 100 rows. Order by a date column DESC for "latest" questions.
             - When the user wants to see a list or table, pass a short "title" to run_select_query - the user is then shown the result as a table with a CSV download. Pass a title ONLY on the one final query whose rows answer the user - never on exploratory or intermediate queries, and never when the user only wants a summary in text.
             - Summarize results in the user's language. Never invent rows or values; if a query fails or returns nothing, say so.
+            GUIDANCE;
+    }
+
+    private function creationGuidance(bool $available): string
+    {
+        // Only advertise page creation when the tool is registered for this
+        // request, so the model never plans around an unavailable tool.
+        if (!$available) {
+            return '';
+        }
+
+        return <<<'GUIDANCE'
+            Creating new pages:
+            - Use the propose_page_creation tool to propose a new page (title, template, parent, locale). The user reviews it and creates the page with one click - nothing is created automatically, and you must never claim a page exists before the user created it.
+            - When the user names a location (e.g. "under Angebote"), call search_content first and pass the result's id and locale as parent_id and parent_locale. Use parent_id "homepage" only for top-level pages.
+            - The new page starts empty. Set "resume": true so you are called again on the new page's edit form and can propose its content there.
             GUIDANCE;
     }
 

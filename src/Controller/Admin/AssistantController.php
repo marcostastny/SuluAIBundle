@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder;
+use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
@@ -27,6 +29,8 @@ class AssistantController
         private SecurityCheckerInterface $securityChecker,
         private DataQueryGate $dataQueryGate,
         private QueryResultCollector $queryResultCollector,
+        private PageCreationGate $pageCreationGate,
+        private PageCreationValidator $pageCreationValidator,
     ) {
     }
 
@@ -72,6 +76,12 @@ class AssistantController
 
         $dataQueryAvailable = $this->dataQueryGate->isAvailable();
 
+        $creationAvailable = $this->pageCreationGate->isAvailable();
+        $contextWebspace = \is_string($context['webspace'] ?? null) && '' !== $context['webspace'] ? $context['webspace'] : null;
+        $validateCreation = $creationAvailable
+            ? fn (array $arguments): array => $this->pageCreationValidator->validate($arguments, $contextWebspace)
+            : null;
+
         // The SEO tab has a fixed form (no template); the content tab needs one.
         $hasPageContext = '' !== $locale && ('seo' === $tab || '' !== $template);
         $validateOps = null;
@@ -80,8 +90,8 @@ class AssistantController
         if ($hasPageContext) {
             try {
                 $built = 'seo' === $tab
-                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs, $dataQueryAvailable)
-                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs, $dataQueryAvailable);
+                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable)
+                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable);
             } catch (\RuntimeException $e) {
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
@@ -89,7 +99,7 @@ class AssistantController
             $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
             $tabs = ['current' => $tab, 'available' => $availableTabs];
         } else {
-            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable);
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable, $creationAvailable);
         }
 
         $messages = \array_values(\array_filter(\array_map(
@@ -117,7 +127,8 @@ class AssistantController
                 $systemPrompt,
                 $messages,
                 $validateOps,
-                $tabs
+                $tabs,
+                $validateCreation
             );
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);

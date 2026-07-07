@@ -60,3 +60,17 @@ sulu_ai.post_image_generate:
     controller: Marcostastny\SuluAIBundle\Controller\Admin\ImageGenerationController::postAction
     defaults: { _format: json }
     requirements: { _format: json }
+
+sulu_ai.get_media_meta_missing_count:
+    path: /ai/media-meta/missing-count.{_format}
+    methods: GET
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\MediaMetaGenerationController::getMissingCountAction
+    defaults: { _format: json }
+    requirements: { _format: json }
+
+sulu_ai.post_media_meta_batch:
+    path: /ai/media-meta/batch.{_format}
+    methods: POST
+    controller: Marcostastny\SuluAIBundle\Controller\Admin\MediaMetaGenerationController::postBatchAction
+    defaults: { _format: json }
+    requirements: { _format: json }

@@ -132,6 +132,29 @@ services:
             - { name: sulu.context, context: admin }
             - { name: controller.service_arguments }
 
+    Marcostastny\SuluAIBundle\Service\MediaMeta\MediaMetaFinder:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+
+    Marcostastny\SuluAIBundle\Service\MediaMeta\MediaMetaGenerator:
+        arguments:
+            $converter: '@sulu_media.image.converter'
+
+    Marcostastny\SuluAIBundle\Service\MediaMeta\MediaMetaWriter:
+        arguments:
+            $mediaManager: '@sulu_media.media_manager'
+
+    Marcostastny\SuluAIBundle\Controller\Admin\MediaMetaGenerationController:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $securityChecker: '@sulu_security.security_checker'
+            $tokenStorage: '@security.token_storage'
+            $localizationManager: '@sulu.core.localization_manager'
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }
+
     Marcostastny\SuluAIBundle\Service\ImageGeneration\ImagePromptBuilder: ~
     Marcostastny\SuluAIBundle\Service\ImageGeneration\OpenAiImageGenerator: ~
 

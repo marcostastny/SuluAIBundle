@@ -14,6 +14,7 @@ use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItemCollection;
 use Sulu\Bundle\AdminBundle\Admin\View\ToolbarAction;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewBuilderFactoryInterface;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewCollection;
+use Sulu\Bundle\MediaBundle\Admin\MediaAdmin;
 use Sulu\Component\Security\Authorization\PermissionTypes;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
 
@@ -161,6 +162,7 @@ class AiSettingAdmin extends Admin
                     'capabilities' => ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false],
                 ],
                 'imageGeneration' => ['available' => false, 'models' => []],
+                'mediaMeta' => ['available' => false],
             ];
         }
 
@@ -206,6 +208,13 @@ class AiSettingAdmin extends Admin
             'imageGeneration' => [
                 'available' => $imageAvailable && [] !== $models,
                 'models' => $models,
+            ],
+            'mediaMeta' => [
+                // The media-meta endpoints write media, so the buttons need
+                // Sulu's media edit grant on top of meta generation.
+                'available' => $configured
+                    && $this->securityChecker->hasPermission(AiSetting::SECURITY_CONTEXT_GENERATION, PermissionTypes::VIEW)
+                    && $this->securityChecker->hasPermission(MediaAdmin::SECURITY_CONTEXT, PermissionTypes::EDIT),
             ],
         ];
     }

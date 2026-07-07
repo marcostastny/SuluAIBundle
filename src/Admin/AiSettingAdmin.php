@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishGate;
 use Sulu\Bundle\AdminBundle\Admin\Admin;
 use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItem;
 use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItemCollection;
@@ -30,7 +31,8 @@ class AiSettingAdmin extends Admin
         private SecurityCheckerInterface $securityChecker,
         private EntityManagerInterface $entityManager,
         private DataQueryGate $dataQueryGate,
-        private PageCreationGate $pageCreationGate
+        private PageCreationGate $pageCreationGate,
+        private PagePublishGate $pagePublishGate
     ) {
     }
 
@@ -159,7 +161,7 @@ class AiSettingAdmin extends Admin
                 'assistant' => [
                     'available' => false,
                     'agentName' => '',
-                    'capabilities' => ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false],
+                    'capabilities' => ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false, 'publish' => false],
                 ],
                 'imageGeneration' => ['available' => false, 'models' => []],
                 'mediaMeta' => ['available' => false],
@@ -203,6 +205,7 @@ class AiSettingAdmin extends Admin
                     'navigation' => $assistantAvailable,
                     'dataQuery' => $assistantAvailable && $this->dataQueryGate->isAvailable(),
                     'pageCreation' => $assistantAvailable && $this->pageCreationGate->isAvailable(),
+                    'publish' => $assistantAvailable && $this->pagePublishGate->isAvailable(),
                 ],
             ],
             'imageGeneration' => [

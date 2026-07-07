@@ -125,6 +125,35 @@ class AssistantContextBuilderTest extends TestCase
         $this->assertStringNotContainsString('propose_page_creation', $result['systemPrompt']);
     }
 
+    public function testGlobalPromptContainsPublishGuidanceWhenAvailable(): void
+    {
+        $prompt = $this->builder()->buildGlobalPrompt(new AiSetting(), false, false, true);
+
+        $this->assertStringContainsString('propose_publish', $prompt);
+        $this->assertStringContainsString('nothing is published automatically', $prompt);
+    }
+
+    public function testGlobalPromptOmitsPublishGuidanceByDefault(): void
+    {
+        $prompt = $this->builder()->buildGlobalPrompt(new AiSetting());
+
+        $this->assertStringNotContainsString('propose_publish', $prompt);
+    }
+
+    public function testPagePromptContainsPublishGuidanceWhenAvailable(): void
+    {
+        $result = $this->builder()->build('default', 'de', ['title' => 'T'], new AiSetting(), [], false, false, true);
+
+        $this->assertStringContainsString('propose_publish', $result['systemPrompt']);
+    }
+
+    public function testPagePromptOmitsPublishGuidanceByDefault(): void
+    {
+        $result = $this->builder()->build('default', 'de', ['title' => 'T'], new AiSetting());
+
+        $this->assertStringNotContainsString('propose_publish', $result['systemPrompt']);
+    }
+
     public function testPagePromptContainsBrandingWhenConfigured(): void
     {
         $result = $this->builder()->build('default', 'de', ['title' => 'T'], $this->brandedSetting());

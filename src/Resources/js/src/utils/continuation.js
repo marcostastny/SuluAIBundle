@@ -21,6 +21,12 @@ export function creationContinuationMessage(title) {
         + 'The page context of this message is the new page - it has no content yet. Continue the task and propose the content now.]';
 }
 
+export function publishContinuationMessage(title, mode) {
+    const state = mode === 'unpublish' ? 'unpublished' : 'published';
+
+    return '[The user confirmed and the page "' + (title || '') + '" was ' + state + '. Continue the task.]';
+}
+
 export function applyContinuationMessage() {
     return '[The user approved and applied the proposed changes. Continue the task.]';
 }

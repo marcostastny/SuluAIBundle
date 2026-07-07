@@ -9,8 +9,8 @@ use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 /**
  * Runs the OpenAI-compatible function-calling loop for the assistant.
  * Server tools from the ToolRegistry are executed in-loop; propose_edits,
- * propose_navigation, switch_tab and propose_page_creation are terminal and
- * returned to the client as actions.
+ * propose_navigation, switch_tab, propose_page_creation and propose_publish
+ * are terminal and returned to the client as actions.
  */
 class AssistantAgent
 {
@@ -34,6 +34,9 @@ class AssistantAgent
      * @param (callable(array<string, mixed>): array)|null $validateCreation returns ['action' => …] or
      *                                                                       ['errors' => …]; null disables
      *                                                                       propose_page_creation
+     * @param (callable(array<string, mixed>): array)|null $validatePublish returns ['action' => …] or
+     *                                                                      ['errors' => …]; null disables
+     *                                                                      propose_publish
      * @param (callable(array<string, mixed>): void)|null $onEvent receives progress events
      *                                                             (delta/status/reset) while the loop
      *                                                             runs; also switches the completion
@@ -50,6 +53,7 @@ class AssistantAgent
         ?callable $validateOps,
         ?array $tabs = null,
         ?callable $validateCreation = null,
+        ?callable $validatePublish = null,
         ?callable $onEvent = null
     ): array {
         $this->targetCollector->reset();
@@ -62,6 +66,9 @@ class AssistantAgent
         if (null !== $validateCreation) {
             $tools[] = $this->proposePageCreationDefinition();
         }
+        if (null !== $validatePublish) {
+            $tools[] = $this->proposePublishDefinition();
+        }
         $switchableTabs = null !== $tabs
             ? \array_values(\array_diff($tabs['available'], [$tabs['current']]))
             : [];
@@ -72,6 +79,7 @@ class AssistantAgent
         $navigationRetried = false;
         $switchTabRetried = false;
         $creationRetried = false;
+        $publishRetried = false;
 
         for ($iteration = 0; $iteration < self::MAX_ITERATIONS; ++$iteration) {
             $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools, $onEvent);
@@ -264,6 +272,38 @@ class AssistantAgent
                     continue;
                 }
 
+                if ('propose_publish' === $name && null !== $validatePublish) {
+                    $result = $validatePublish($arguments);
+
+                    if (isset($result['action'])) {
+                        $reply = \trim((string) ($message['content'] ?? ''));
+
+                        return [
+                            'reply' => '' !== $reply ? $reply : (string) ($arguments['message'] ?? ''),
+                            'actions' => [$result['action']],
+                        ];
+                    }
+
+                    if ($publishRetried) {
+                        return [
+                            'reply' => 'I could not prepare the publish action. Please try rephrasing your request.',
+                            'actions' => [],
+                        ];
+                    }
+
+                    $publishRetried = true;
+                    $conversation[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => (string) ($toolCall['id'] ?? ''),
+                        'content' => (string) \json_encode([
+                            'errors' => $result['errors'] ?? [],
+                            'instruction' => 'Fix the arguments and call propose_publish again. Omit "id" to target the currently open page, or use search_content to find the page first.',
+                        ]),
+                    ];
+
+                    continue;
+                }
+
                 $tool = $this->toolRegistry->get($name);
                 if (null === $tool) {
                     $result = ['error' => \sprintf('Unknown tool "%s".', $name)];
@@ -397,6 +437,44 @@ class AssistantAgent
                         'resume' => $this->resumeParameter(),
                     ],
                     'required' => ['message', 'title', 'template', 'parent_id', 'locale'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proposePublishDefinition(): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => 'propose_publish',
+                'description' => 'Propose publishing or unpublishing a page. The user confirms with one click - nothing is published automatically. Publishing puts the last SAVED state live; unsaved changes (including just-applied edits) are not part of it until the user saves.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'mode' => [
+                            'type' => 'string',
+                            'enum' => ['publish', 'unpublish'],
+                            'description' => 'Whether to publish or unpublish the page.',
+                        ],
+                        'message' => [
+                            'type' => 'string',
+                            'description' => 'One sentence describing what will happen, in the user\'s language.',
+                        ],
+                        'id' => [
+                            'type' => 'string',
+                            'description' => 'Omit to target the currently open page. Otherwise the id of a pages result from search_content in this conversation turn.',
+                        ],
+                        'locale' => [
+                            'type' => 'string',
+                            'description' => 'Required with "id": the locale exactly as returned by search_content.',
+                        ],
+                        'resume' => $this->resumeParameter(),
+                    ],
+                    'required' => ['mode', 'message'],
                 ],
             ],
         ];

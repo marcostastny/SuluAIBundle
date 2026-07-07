@@ -15,6 +15,8 @@ use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
+use Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator;
 use Marcostastny\SuluAIBundle\Service\Assistant\SseStream;
 use Psr\Log\LoggerInterface;
@@ -39,6 +41,8 @@ class AssistantController
         private QueryResultCollector $queryResultCollector,
         private PageCreationGate $pageCreationGate,
         private PageCreationValidator $pageCreationValidator,
+        private PagePublishGate $pagePublishGate,
+        private PagePublishValidator $pagePublishValidator,
         private ChatSessionRepository $sessionRepository,
         private SessionTitleGenerator $titleGenerator,
         private TokenStorageInterface $tokenStorage,
@@ -110,6 +114,7 @@ class AssistantController
      *     validateOps: callable|null,
      *     tabs: array{current: string, available: list<string>}|null,
      *     validateCreation: callable|null,
+     *     validatePublish: callable|null,
      *     session: ChatSession|null,
      *     user: User|null,
      * }|JsonResponse
@@ -178,16 +183,32 @@ class AssistantController
             ? fn (array $arguments): array => $this->pageCreationValidator->validate($arguments, $contextWebspace)
             : null;
 
+        $publishAvailable = $this->pagePublishGate->isAvailable();
+
         // The SEO tab has a fixed form (no template); the content tab needs one.
         $hasPageContext = '' !== $locale && ('seo' === $tab || '' !== $template);
+
+        // The page the user has open, as the publish validator's implicit
+        // target. Only meaningful when its id and webspace are known.
+        $contextId = \is_scalar($context['id'] ?? null) ? (string) $context['id'] : '';
+        $contextPage = $hasPageContext && '' !== $contextId && null !== $contextWebspace ? [
+            'id' => $contextId,
+            'locale' => $locale,
+            'webspace' => $contextWebspace,
+            'title' => \is_string($formData['title'] ?? null) ? $formData['title'] : '',
+        ] : null;
+        $validatePublish = $publishAvailable
+            ? fn (array $arguments): array => $this->pagePublishValidator->validate($arguments, $contextPage)
+            : null;
+
         $validateOps = null;
         $tabs = null;
 
         if ($hasPageContext) {
             try {
                 $built = 'seo' === $tab
-                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable)
-                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable);
+                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable, $publishAvailable)
+                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs, $dataQueryAvailable, $creationAvailable, $publishAvailable);
             } catch (\RuntimeException $e) {
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
@@ -209,7 +230,7 @@ class AssistantController
             };
             $tabs = ['current' => $tab, 'available' => $availableTabs];
         } else {
-            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable, $creationAvailable);
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable, $creationAvailable, $publishAvailable);
         }
 
         $messages = \array_values(\array_filter(\array_map(
@@ -235,6 +256,7 @@ class AssistantController
             'validateOps' => $validateOps,
             'tabs' => $tabs,
             'validateCreation' => $validateCreation,
+            'validatePublish' => $validatePublish,
             'session' => $session,
             'user' => $user,
         ];
@@ -260,6 +282,7 @@ class AssistantController
             $prepared['validateOps'],
             $prepared['tabs'],
             $prepared['validateCreation'],
+            $prepared['validatePublish'],
             $onEvent
         );
 

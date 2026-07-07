@@ -9,6 +9,10 @@ namespace Marcostastny\SuluAIBundle\Service\Assistant\DataQuery;
  * and the chat response: titled query results are recorded here and merged
  * into the response actions by the AssistantController. Also counts tool
  * calls so a runaway model cannot query in a loop.
+ *
+ * Only the LAST recorded result survives: models title exploratory and
+ * refined queries alike despite guidance, which rendered the same data as
+ * multiple table cards. One card per turn, last titled query wins.
  */
 class QueryResultCollector
 {
@@ -34,7 +38,7 @@ class QueryResultCollector
      */
     public function add(array $action): void
     {
-        $this->actions[] = $action;
+        $this->actions = [$action];
     }
 
     /**

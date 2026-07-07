@@ -95,6 +95,14 @@ services:
             - { name: sulu.context, context: admin }
             - { name: controller.service_arguments }
 
+    Marcostastny\SuluAIBundle\Controller\Admin\DataQueryExportController:
+        arguments:
+            $securityChecker: '@sulu_security.security_checker'
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }
+
     Marcostastny\SuluAIBundle\Service\ImageGeneration\ImagePromptBuilder: ~
     Marcostastny\SuluAIBundle\Service\ImageGeneration\OpenAiImageGenerator: ~
 

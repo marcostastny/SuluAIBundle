@@ -14,17 +14,39 @@ test('createRun for zero total is immediately done', () => {
     expect(isFinished(createRun('missing', [], 0))).toBe(true);
 });
 
-test('missing mode requests carry limit and accumulated error ids', () => {
+test('missing mode requests carry limit and accumulated error AND skipped ids', () => {
     let run = createRun('missing', [], 10);
     expect(nextRequestBody(run)).toEqual({mode: 'missing', limit: BATCH_LIMIT, excludeIds: []});
 
+    // Skipped images (e.g. file missing on disk) stay "missing" in the DB -
+    // they must be excluded like errors or the finder re-selects them forever.
     run = applyBatchResponse(run, {
         processed: [{id: 1, locales: {}}],
-        skipped: [],
+        skipped: [{id: 3, reason: 'no-preview'}],
         errors: [{id: 2, message: 'boom'}],
-        remaining: 8,
+        remaining: 7,
     });
-    expect(nextRequestBody(run)).toEqual({mode: 'missing', limit: BATCH_LIMIT, excludeIds: [2]});
+    expect(nextRequestBody(run)).toEqual({mode: 'missing', limit: BATCH_LIMIT, excludeIds: [2, 3]});
+});
+
+test('a stagnating remaining count aborts after three batches', () => {
+    // Pathological case: server-side excludeIds cap exceeded, so remaining
+    // never drops although items are "handled" (skipped) every time.
+    let run = createRun('missing', [], 600);
+    run = applyBatchResponse(run, {processed: [], skipped: [{id: 1}, {id: 2}], errors: [], remaining: 600});
+    expect(run.aborted).toBe(false);
+    run = applyBatchResponse(run, {processed: [], skipped: [{id: 3}, {id: 4}], errors: [], remaining: 600});
+    expect(run.aborted).toBe(false);
+    run = applyBatchResponse(run, {processed: [], skipped: [{id: 5}, {id: 6}], errors: [], remaining: 600});
+    expect(run.aborted).toBe(true);
+
+    // A decreasing remaining resets the stagnation counter.
+    let healthy = createRun('missing', [], 600);
+    healthy = applyBatchResponse(healthy, {processed: [], skipped: [{id: 1}], errors: [], remaining: 600});
+    healthy = applyBatchResponse(healthy, {processed: [{id: 2}], skipped: [], errors: [], remaining: 599});
+    healthy = applyBatchResponse(healthy, {processed: [], skipped: [{id: 3}], errors: [], remaining: 599});
+    healthy = applyBatchResponse(healthy, {processed: [], skipped: [{id: 4}], errors: [], remaining: 599});
+    expect(healthy.aborted).toBe(false);
 });
 
 test('selected mode chunks the id queue', () => {

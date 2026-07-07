@@ -177,6 +177,24 @@ class MediaMetaGenerationControllerTest extends TestCase
         $this->assertSame(4, $decoded['remaining']);
     }
 
+    public function testMissingModeExcludesSkippedIdsFromRemaining(): void
+    {
+        $controller = $this->controller($this->setting());
+        // The finder selects id 1 (its meta IS missing), but the preview
+        // cannot be rendered -> skipped. The remaining count must exclude it,
+        // or the client would loop over the same image forever.
+        $this->finder->method('findIds')->willReturn([1]);
+        $this->finder->expects($this->once())->method('count')->with(['de', 'en'], [1])->willReturn(0);
+        $this->mediaRepository->method('findBy')->willReturn([$this->mediaEntity(1)]);
+        $this->generator->method('generate')->willThrowException(new PreviewNotSupportedException('gone'));
+
+        $response = $controller->postBatchAction($this->jsonRequest(['mode' => 'missing']));
+
+        $decoded = \json_decode((string) $response->getContent(), true);
+        $this->assertSame([['id' => 1, 'reason' => 'no-preview']], $decoded['skipped']);
+        $this->assertSame(0, $decoded['remaining']);
+    }
+
     public function testSelectedModeCapsAtFiveAndSkipsNonImages(): void
     {
         $controller = $this->controller($this->setting());

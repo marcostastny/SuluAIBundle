@@ -140,7 +140,9 @@ class MediaMetaGenerationController
             }
         }
 
-        $stillExcluded = [...$excludeIds, ...\array_column($errors, 'id')];
+        // Errored AND skipped images stay "missing" in the database - both
+        // must leave the remaining count or the client would loop forever.
+        $stillExcluded = [...$excludeIds, ...\array_column($errors, 'id'), ...\array_column($skipped, 'id')];
         $remaining = $override ? 0 : $this->finder->count($locales, $stillExcluded);
 
         return new JsonResponse([

@@ -16,6 +16,28 @@ const valueAt = (data, property) =>
         data
     );
 
+// "/blocks/3/cards/0/rows/5/value" → "blocks #3 · cards #0 · rows #5 · value"
+const blockPathLabel = (path) => {
+    const segments = path.replace(/^\//, '').split('/');
+    const parts = [];
+    for (let i = 0; i < segments.length; i += 2) {
+        parts.push(i + 1 < segments.length ? segments[i] + ' #' + segments[i + 1] : segments[i]);
+    }
+
+    return parts.join(' · ');
+};
+
+// Walks a (possibly nested) block container path through the form data.
+const blocksAtPath = (data, segments) => {
+    let blocks = data[segments[0]];
+    for (let i = 1; i < segments.length; i += 2) {
+        const block = Array.isArray(blocks) ? blocks[parseInt(segments[i])] : undefined;
+        blocks = block && typeof block === 'object' ? block[segments[i + 1]] : undefined;
+    }
+
+    return Array.isArray(blocks) ? blocks : [];
+};
+
 const formatValue = (value) => {
     if (value === undefined || value === null || value === '') {
         return '—';
@@ -95,14 +117,15 @@ class DiffCard extends React.Component {
                 );
             }
             case 'setBlockField': {
-                const segments = op.path.split('/');
-                const blocks = data[segments[1]] || [];
-                const block = blocks[parseInt(segments[2])] || {};
+                const segments = op.path.replace(/^\//, '').split('/');
+                const field = segments[segments.length - 1];
+                const blockIndex = parseInt(segments[segments.length - 2]);
+                const block = blocksAtPath(data, segments.slice(0, -2))[blockIndex] || {};
 
                 return (
                     <div className={styles.row} key={index}>
-                        <div className={styles.rowLabel}>{segments[1] + ' #' + segments[2] + ' · ' + segments[3]}</div>
-                        <div className={styles.oldValue}>{formatValue(block[segments[3]])}</div>
+                        <div className={styles.rowLabel}>{blockPathLabel(op.path)}</div>
+                        <div className={styles.oldValue}>{formatValue(block[field])}</div>
                         <div className={styles.newValue}>{formatValue(op.value)}</div>
                     </div>
                 );
@@ -117,7 +140,7 @@ class DiffCard extends React.Component {
                     </div>
                 );
             case 'removeBlock': {
-                const blocks = data[op.path.slice(1)] || [];
+                const blocks = blocksAtPath(data, op.path.replace(/^\//, '').split('/'));
                 const block = blocks[op.index] || {};
 
                 return (

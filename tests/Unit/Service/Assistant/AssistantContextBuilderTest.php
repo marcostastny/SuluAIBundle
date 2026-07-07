@@ -88,6 +88,14 @@ class AssistantContextBuilderTest extends TestCase
         $this->assertStringContainsString('propose_navigation', $built['systemPrompt']);
     }
 
+    public function testPagePromptDocumentsNestedBlockPaths(): void
+    {
+        $built = $this->builder()->build('default', 'de', ['title' => 'T'], new AiSetting());
+
+        $this->assertStringContainsString('/blocks/3/cards/0/rows/5/value', $built['systemPrompt']);
+        $this->assertStringContainsString('put the inner edits first', $built['systemPrompt']);
+    }
+
     public function testGlobalPromptContainsCreationGuidanceWhenAvailable(): void
     {
         $prompt = $this->builder()->buildGlobalPrompt(new AiSetting(), false, true);

@@ -209,11 +209,12 @@ class AssistantContextBuilder
             - When the user asks you to change the page, do NOT describe the change in text - call the propose_edits tool with a list of operations and a one-sentence summary.
             - Operation formats (JSON objects):
               {"op": "set", "path": "/<property>", "value": <newValue>} - set a non-block property
-              {"op": "setBlockField", "path": "/<blockProperty>/<index>/<field>", "value": <newValue>} - set one field of one existing block
-              {"op": "insertBlock", "path": "/<blockProperty>", "index": <position>, "block": {"type": "<blockType>", <field>: <value>, ...}} - insert a new block
-              {"op": "removeBlock", "path": "/<blockProperty>", "index": <position>} - remove a block
-              {"op": "moveBlock", "path": "/<blockProperty>", "from": <position>, "to": <position>} - move a block
+              {"op": "setBlockField", "path": "/<blockProperty>/<index>/<field>", "value": <newValue>} - set one field of one existing block. For blocks nested inside blocks, extend the path with further <blockProperty>/<index> pairs, e.g. {"op": "setBlockField", "path": "/blocks/3/cards/0/rows/5/value", "value": "CHF 3.50"}
+              {"op": "insertBlock", "path": "/<blockProperty>", "index": <position>, "block": {"type": "<blockType>", <field>: <value>, ...}} - insert a new block; the path may address a nested block list (e.g. "/blocks/3/cards/0/rows"), and fields of type "block" inside the new block take a list of nested block objects
+              {"op": "removeBlock", "path": "/<blockProperty>", "index": <position>} - remove a block (the path may address a nested block list)
+              {"op": "moveBlock", "path": "/<blockProperty>", "from": <position>, "to": <position>} - move a block (the path may address a nested block list)
             - Indices refer to the state after the previous operations in the same list have been applied.
+            - When one proposal both restructures a block list and edits blocks inside it, put the inner edits first.
             - Only use properties, fields and block types that exist in the TEMPLATE SCHEMA. Never invent new ones.
             - Property names may contain slashes (e.g. "seo/title") - use them verbatim: {"op": "set", "path": "/seo/title", ...}. For such properties the value is nested in CURRENT PAGE DATA (path "/seo/title" reads data.seo.title).
             - Keep values in the format the field type expects (e.g. HTML for "text_editor" fields, plain text for "text_line" fields).

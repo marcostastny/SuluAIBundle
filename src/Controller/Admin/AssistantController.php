@@ -192,7 +192,21 @@ class AssistantController
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
             $systemPrompt = $built['systemPrompt'];
-            $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
+            $validateOps = function (array $ops) use ($built, $formData, $template, $tab): array {
+                $errors = $this->editOpValidator->validate($ops, $built['schema'], $formData);
+                if ([] !== $errors) {
+                    // Rejected proposals are otherwise invisible: after two
+                    // failures the agent gives up with a generic reply.
+                    $this->logger->warning('sulu_ai: assistant edit ops rejected', [
+                        'errors' => $errors,
+                        'ops' => $ops,
+                        'template' => $template,
+                        'tab' => $tab,
+                    ]);
+                }
+
+                return $errors;
+            };
             $tabs = ['current' => $tab, 'available' => $availableTabs];
         } else {
             $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable, $creationAvailable);

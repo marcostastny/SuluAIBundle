@@ -298,6 +298,189 @@ class EditOpValidatorTest extends TestCase
         $this->assertStringContainsString('seo/nonexistent', $errors[0]);
     }
 
+    /**
+     * Schema with two-level nesting: blocks → infoCards → cards → card → rows → row.
+     *
+     * @return array{fields: array<string, array<string, mixed>>}
+     */
+    private function nestedSchema(): array
+    {
+        return [
+            'fields' => [
+                'title' => ['type' => 'text_line', 'required' => true],
+                'blocks' => [
+                    'type' => 'block',
+                    'required' => false,
+                    'defaultType' => 'infoCards',
+                    'blockTypes' => [
+                        'textBlock' => ['fields' => ['text' => ['type' => 'text_editor', 'required' => false]]],
+                        'infoCards' => ['fields' => [
+                            'title' => ['type' => 'text_line', 'required' => false],
+                            'cards' => [
+                                'type' => 'block',
+                                'required' => false,
+                                'defaultType' => 'card',
+                                'blockTypes' => [
+                                    'card' => ['fields' => [
+                                        'head' => ['type' => 'text_line', 'required' => false],
+                                        'rows' => [
+                                            'type' => 'block',
+                                            'required' => false,
+                                            'defaultType' => 'row',
+                                            'blockTypes' => [
+                                                'row' => ['fields' => [
+                                                    'label' => ['type' => 'text_line', 'required' => false],
+                                                    'value' => ['type' => 'text_line', 'required' => false],
+                                                ]],
+                                            ],
+                                        ],
+                                    ]],
+                                ],
+                            ],
+                        ]],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function nestedFormData(): array
+    {
+        return [
+            'title' => 'Zimmer & Preise',
+            'blocks' => [
+                ['type' => 'textBlock', 'text' => '<p>intro</p>'],
+                ['type' => 'infoCards', 'title' => 'Gut zu wissen', 'cards' => [
+                    ['type' => 'card', 'head' => 'Check-in', 'rows' => [
+                        ['type' => 'row', 'label' => 'Kurtaxe p. P. / Nacht', 'value' => 'CHF 2.50'],
+                        ['type' => 'row', 'label' => 'Check-out', 'value' => '11:00'],
+                    ]],
+                ]],
+            ],
+        ];
+    }
+
+    public function testNestedSetBlockFieldPasses(): void
+    {
+        $ops = [['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/0/value', 'value' => 'CHF 3.50']];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
+    public function testNestedSetBlockFieldRejectsUnknownField(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/0/price', 'value' => 'x']],
+            $this->nestedSchema(),
+            $this->nestedFormData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('"row" block, which has no field "price"', $errors[0]);
+    }
+
+    public function testNestedSetBlockFieldRejectsOutOfRangeInnerIndex(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/9/value', 'value' => 'x']],
+            $this->nestedSchema(),
+            $this->nestedFormData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('out of range for "blocks/1/cards/0/rows"', $errors[0]);
+    }
+
+    public function testNestedSetBlockFieldRejectsDescentThroughNonBlockField(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'setBlockField', 'path' => '/blocks/1/title/0/value', 'value' => 'x']],
+            $this->nestedSchema(),
+            $this->nestedFormData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('not a nested block property', $errors[0]);
+    }
+
+    public function testNestedStructuralOpsPass(): void
+    {
+        $ops = [
+            ['op' => 'insertBlock', 'path' => '/blocks/1/cards/0/rows', 'index' => 2, 'block' => ['type' => 'row', 'label' => 'Hunde', 'value' => 'CHF 10']],
+            ['op' => 'moveBlock', 'path' => '/blocks/1/cards/0/rows', 'from' => 2, 'to' => 0],
+            ['op' => 'removeBlock', 'path' => '/blocks/1/cards/0/rows', 'index' => 1],
+        ];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
+    public function testNestedInsertTracksRunningIndices(): void
+    {
+        // After the insert, rows has 3 entries — index 2 is a valid target.
+        $ops = [
+            ['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/1/value', 'value' => '12:00'],
+            ['op' => 'insertBlock', 'path' => '/blocks/1/cards/0/rows', 'index' => 0, 'block' => ['type' => 'row']],
+            ['op' => 'removeBlock', 'path' => '/blocks/1/cards/0/rows', 'index' => 2],
+        ];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
+    public function testInsertBlockWithNestedBlockContentPasses(): void
+    {
+        $ops = [['op' => 'insertBlock', 'path' => '/blocks/1/cards', 'index' => 1, 'block' => [
+            'type' => 'card',
+            'head' => 'Anreise',
+            'rows' => [
+                ['type' => 'row', 'label' => 'Check-in', 'value' => '14:00'],
+                ['type' => 'row', 'label' => 'Parkplatz', 'value' => 'kostenlos'],
+            ],
+        ]]];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
+    public function testInsertBlockRejectsInvalidNestedBlockContent(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'insertBlock', 'path' => '/blocks/1/cards', 'index' => 0, 'block' => [
+                'type' => 'card',
+                'rows' => [['type' => 'row', 'price' => 'CHF 1']],
+            ]]],
+            $this->nestedSchema(),
+            $this->nestedFormData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('block type "row" has no field "price"', $errors[0]);
+    }
+
+    public function testOpDescendingThroughRestructuredContainerIsRejected(): void
+    {
+        $ops = [
+            ['op' => 'insertBlock', 'path' => '/blocks', 'index' => 0, 'block' => ['type' => 'textBlock', 'text' => 'x']],
+            ['op' => 'setBlockField', 'path' => '/blocks/2/cards/0/rows/0/value', 'value' => 'CHF 3.50'],
+        ];
+
+        $errors = $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData());
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('restructured by an earlier operation', $errors[0]);
+    }
+
+    public function testInnerEditBeforeAncestorRestructureIsAccepted(): void
+    {
+        $ops = [
+            ['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/0/value', 'value' => 'CHF 3.50'],
+            ['op' => 'insertBlock', 'path' => '/blocks', 'index' => 0, 'block' => ['type' => 'textBlock', 'text' => 'x']],
+        ];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
     public function testErrorsArePrefixedWithOpIndex(): void
     {
         $errors = $this->validator->validate(

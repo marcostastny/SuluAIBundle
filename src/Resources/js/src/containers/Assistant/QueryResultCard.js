@@ -72,8 +72,8 @@ class QueryResultCard extends React.Component {
                             {rows.map((row, rowIndex) => (
                                 <tr key={rowIndex}>
                                     {row.map((value, cellIndex) => (
-                                        <td key={cellIndex} title={value === null ? undefined : value}>
-                                            {value === null ? '—' : value}
+                                        <td key={cellIndex} title={value == null ? undefined : String(value)}>
+                                            {value == null ? '—' : String(value)}
                                         </td>
                                     ))}
                                 </tr>

@@ -205,7 +205,7 @@ class AssistantAgentTest extends TestCase
     public function testIterationCapReturnsFallbackReply(): void
     {
         $responses = [];
-        for ($i = 0; $i < 6; ++$i) {
+        for ($i = 0; $i < 9; ++$i) {
             $responses[] = $this->toolCallResponse('lookup', [], 'call_' . $i);
         }
         $tool = new class() implements AssistantToolInterface {
@@ -230,7 +230,7 @@ class AssistantAgentTest extends TestCase
 
         $this->assertSame([], $result['actions']);
         $this->assertNotSame('', $result['reply']);
-        $this->assertSame(5, $client->getRequestsCount());
+        $this->assertSame(8, $client->getRequestsCount());
     }
 
     public function testProposeNavigationReturnsCollectedTargets(): void

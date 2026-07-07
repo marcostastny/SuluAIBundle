@@ -259,7 +259,7 @@ class AssistantContextBuilder
             - You can answer questions about stored data (e.g. form submissions) by running read-only SQL SELECT queries.
             - Always call list_data_tables first to see which tables you may query and their exact columns; then call run_select_query.
             - Only single SELECT statements are allowed: no CTEs/WITH, no schema-qualified names, results capped at 100 rows. Order by a date column DESC for "latest" questions.
-            - When the user wants to see a list or table, pass a short "title" to run_select_query - the user is then shown the result as a table with a CSV download. For pure summaries, omit the title and answer in text.
+            - When the user wants to see a list or table, pass a short "title" to run_select_query - the user is then shown the result as a table with a CSV download. Pass a title ONLY on the one final query whose rows answer the user - never on exploratory or intermediate queries, and never when the user only wants a summary in text.
             - Summarize results in the user's language. Never invent rows or values; if a query fails or returns nothing, say so.
             GUIDANCE;
     }

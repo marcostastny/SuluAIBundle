@@ -1,4 +1,12 @@
-import {csvFilename} from '../src/utils/dataQuery';
+import {csvFilename, normalizeRows} from '../src/utils/dataQuery';
+
+test('normalizeRows converts object rows from the Requester transform back to arrays', () => {
+    // Sulu's Requester turns nested arrays into {0: ..., 1: ...} objects.
+    expect(normalizeRows([{0: 'a', 1: 'b'}, ['c', 'd']])).toEqual([['a', 'b'], ['c', 'd']]);
+    expect(normalizeRows([{0: 'x', 1: undefined}])).toEqual([['x', undefined]]);
+    expect(normalizeRows(undefined)).toEqual([]);
+    expect(normalizeRows([null])).toEqual([[]]);
+});
 
 test('builds a safe csv filename from the title', () => {
     expect(csvFilename('Latest reservations')).toBe('latest-reservations.csv');

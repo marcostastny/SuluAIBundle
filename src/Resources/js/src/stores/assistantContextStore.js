@@ -5,9 +5,11 @@ import {translate} from 'sulu-admin-bundle/utils';
 import {snapshotBlockTypes} from '../utils/applyOps';
 import {MAX_AUTO_CONTINUATIONS, abortMessage, contextMatchesExpectation} from '../utils/continuation';
 import {normalizeRows} from '../utils/dataQuery';
+import {asList, restoreMessages, serializableActions} from '../utils/sessionMessages';
 import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
+const SESSIONS_ENDPOINT = '/admin/api/ai/assistant/sessions';
 
 class AssistantContextStore {
     @observable.ref context = null;
@@ -17,6 +19,11 @@ class AssistantContextStore {
     @observable agentName = '';
     @observable panelOpen = false;
     @observable.ref pendingResume = null;
+    @observable sessionId = null;
+    @observable sessionTitle = '';
+    @observable.ref sessions = [];
+    @observable sessionsLoading = false;
+    @observable.ref capabilities = {};
     autoContinuations = 0;
     resumeTimeout = null;
     resumeDisposer = null;
@@ -53,6 +60,55 @@ class AssistantContextStore {
         this.messages = [];
         this.autoContinuations = 0;
         this.cancelPendingResume();
+    }
+
+    @action setCapabilities(capabilities) {
+        this.capabilities = capabilities || {};
+    }
+
+    @action startNewSession() {
+        this.clearMessages();
+        this.sessionId = null;
+        this.sessionTitle = '';
+    }
+
+    @action loadSessions() {
+        this.sessionsLoading = true;
+
+        return Requester.get(SESSIONS_ENDPOINT).then(action((response) => {
+            this.sessionsLoading = false;
+            this.sessions = asList(response.sessions);
+        })).catch(action(() => {
+            this.sessionsLoading = false;
+            this.sessions = [];
+        }));
+    }
+
+    @action openSession(id) {
+        if (this.loading) {
+            return Promise.resolve();
+        }
+
+        return Requester.get(SESSIONS_ENDPOINT + '/' + id).then(action((response) => {
+            this.cancelPendingResume();
+            this.autoContinuations = 0;
+            this.sessionId = response.id;
+            this.sessionTitle = response.title || '';
+            this.messages = restoreMessages(response.messages);
+        })).catch(action(() => {
+            this.pushNotice(translate('sulu_ai.assistant_error'));
+        }));
+    }
+
+    @action deleteSession(id) {
+        return Requester.delete(SESSIONS_ENDPOINT + '/' + id).then(action(() => {
+            this.sessions = this.sessions.filter((session) => session.id !== id);
+            if (this.sessionId === id) {
+                this.startNewSession();
+            }
+        })).catch(action(() => {
+            this.pushNotice(translate('sulu_ai.assistant_error'));
+        }));
     }
 
     @action pushNotice(content) {
@@ -166,9 +222,15 @@ class AssistantContextStore {
 
         const history = this.messages
             .filter((message) => message.role === 'user' || message.role === 'assistant')
-            .map((message) => ({role: message.role, content: message.content}));
+            .map((message) => ({
+                role: message.role,
+                content: message.content,
+                hidden: Boolean(message.hidden),
+                actions: serializableActions(message.actions),
+            }));
 
         return Requester.post(ENDPOINT, {
+            sessionId: this.sessionId,
             context: context && resourceFormStore ? {
                 type: context.type,
                 id: resourceFormStore.id,
@@ -186,7 +248,7 @@ class AssistantContextStore {
                 // Initialize the per-card status flags now: mobx 4 only
                 // observes keys that exist when the object becomes observable,
                 // so flags added later would never re-render the cards.
-                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false};
+                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false, restored: false};
 
                 if (responseAction.type === 'proposeEdits') {
                     return {
@@ -200,6 +262,9 @@ class AssistantContextStore {
                     // into numeric-keyed objects — restore real arrays.
                     return {...base, rows: normalizeRows(responseAction.rows)};
                 }
+                if (responseAction.type === 'createPage') {
+                    return {...base, creating: false, failed: false};
+                }
 
                 return base;
             });
@@ -210,6 +275,12 @@ class AssistantContextStore {
                 applied: false,
                 discarded: false,
             });
+            if (response.sessionId) {
+                this.sessionId = response.sessionId;
+            }
+            if (response.sessionTitle) {
+                this.sessionTitle = response.sessionTitle;
+            }
         })).catch(action(() => {
             this.loading = false;
             this.messages.push({

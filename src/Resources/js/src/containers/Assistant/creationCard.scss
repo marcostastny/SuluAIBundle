@@ -1,0 +1,82 @@
+.card {
+    margin: 8px 40px 8px 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.summary {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: bold;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+}
+
+.icon {
+    color: #52b6ca;
+}
+
+.info {
+    flex: 1;
+    min-width: 0;
+}
+
+.page-title {
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.meta {
+    color: #666;
+}
+
+.buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid #eee;
+}
+
+.create-button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    background: #52b6ca;
+    color: #fff;
+}
+
+.cancel-button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    color: #333;
+}
+
+.status {
+    padding: 10px 12px;
+    border-top: 1px solid #eee;
+    color: #666;
+    font-style: italic;
+}
+
+.error {
+    padding: 10px 12px;
+    border-top: 1px solid #eee;
+    color: #b00;
+}

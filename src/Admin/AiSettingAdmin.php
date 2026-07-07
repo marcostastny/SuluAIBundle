@@ -6,6 +6,8 @@ namespace Marcostastny\SuluAIBundle\Admin;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
+use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Sulu\Bundle\AdminBundle\Admin\Admin;
 use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItem;
 use Sulu\Bundle\AdminBundle\Admin\Navigation\NavigationItemCollection;
@@ -25,7 +27,9 @@ class AiSettingAdmin extends Admin
     public function __construct(
         private ViewBuilderFactoryInterface $viewBuilderFactory,
         private SecurityCheckerInterface $securityChecker,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private DataQueryGate $dataQueryGate,
+        private PageCreationGate $pageCreationGate
     ) {
     }
 
@@ -151,7 +155,11 @@ class AiSettingAdmin extends Admin
             // endpoint, so a thrown query would take down the entire admin UI —
             // degrade to "not configured" instead.
             return [
-                'assistant' => ['available' => false, 'agentName' => ''],
+                'assistant' => [
+                    'available' => false,
+                    'agentName' => '',
+                    'capabilities' => ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false],
+                ],
                 'imageGeneration' => ['available' => false, 'models' => []],
             ];
         }
@@ -177,13 +185,23 @@ class AiSettingAdmin extends Admin
             }
         }
 
+        $assistantAvailable = $configured && $this->securityChecker->hasPermission(
+            AiSetting::SECURITY_CONTEXT_ASSISTANT,
+            PermissionTypes::VIEW
+        );
+
         return [
             'assistant' => [
-                'available' => $configured && $this->securityChecker->hasPermission(
-                    AiSetting::SECURITY_CONTEXT_ASSISTANT,
-                    PermissionTypes::VIEW
-                ),
+                'available' => $assistantAvailable,
                 'agentName' => \trim((string) $setting?->getAgentName()),
+                // Drives the permission-aware chat intro: only capabilities
+                // this user may actually use are advertised.
+                'capabilities' => [
+                    'editing' => $assistantAvailable,
+                    'navigation' => $assistantAvailable,
+                    'dataQuery' => $assistantAvailable && $this->dataQueryGate->isAvailable(),
+                    'pageCreation' => $assistantAvailable && $this->pageCreationGate->isAvailable(),
+                ],
             ],
             'imageGeneration' => [
                 'available' => $imageAvailable && [] !== $models,

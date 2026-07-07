@@ -3,9 +3,16 @@ import {
     abortMessage,
     applyContinuationMessage,
     contextMatchesExpectation,
+    creationContinuationMessage,
     navigationContinuationMessage,
     tabSwitchContinuationMessage,
 } from '../src/utils/continuation';
+
+test('creationContinuationMessage mentions the new page and continuing', () => {
+    const message = creationContinuationMessage('Wellness Weekend');
+    expect(message).toContain('Wellness Weekend');
+    expect(message).toContain('Continue');
+});
 
 describe('continuation messages', () => {
     it('describes an opened navigation target', () => {

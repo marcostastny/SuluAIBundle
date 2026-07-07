@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Marcostastny\SuluAIBundle\Admin\AiSettingAdmin;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
+use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use PHPUnit\Framework\TestCase;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewBuilderFactoryInterface;
 use Sulu\Component\Security\Authorization\PermissionTypes;
@@ -15,8 +17,22 @@ use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
 
 class AiSettingAdminTest extends TestCase
 {
-    private function admin(?AiSetting $setting, bool $hasAssistantPermission): AiSettingAdmin
+    private function gates(bool $dataQueryAvailable = false, bool $pageCreationAvailable = false): array
     {
+        $dataQueryGate = $this->createMock(DataQueryGate::class);
+        $dataQueryGate->method('isAvailable')->willReturn($dataQueryAvailable);
+        $pageCreationGate = $this->createMock(PageCreationGate::class);
+        $pageCreationGate->method('isAvailable')->willReturn($pageCreationAvailable);
+
+        return [$dataQueryGate, $pageCreationGate];
+    }
+
+    private function admin(
+        ?AiSetting $setting,
+        bool $hasAssistantPermission,
+        bool $dataQueryAvailable = false,
+        bool $pageCreationAvailable = false
+    ): AiSettingAdmin {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -30,10 +46,14 @@ class AiSettingAdminTest extends TestCase
             ], true) && PermissionTypes::VIEW === $permission && $hasAssistantPermission
         );
 
+        [$dataQueryGate, $pageCreationGate] = $this->gates($dataQueryAvailable, $pageCreationAvailable);
+
         return new AiSettingAdmin(
             $this->createMock(ViewBuilderFactoryInterface::class),
             $securityChecker,
-            $entityManager
+            $entityManager,
+            $dataQueryGate,
+            $pageCreationGate
         );
     }
 
@@ -111,6 +131,50 @@ class AiSettingAdminTest extends TestCase
         $this->assertSame([], $config['imageGeneration']['models']);
     }
 
+    public function testConfigContainsCapabilities(): void
+    {
+        $config = $this->admin($this->enabledSetting(), true, true, false)->getConfig();
+
+        $this->assertSame(
+            ['editing' => true, 'navigation' => true, 'dataQuery' => true, 'pageCreation' => false],
+            $config['assistant']['capabilities']
+        );
+    }
+
+    public function testCapabilitiesAllFalseWithoutAssistantPermission(): void
+    {
+        // Both gates report available, but without the assistant permission
+        // no capability may be advertised.
+        $config = $this->admin($this->enabledSetting(), false, true, true)->getConfig();
+
+        $this->assertSame(
+            ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false],
+            $config['assistant']['capabilities']
+        );
+    }
+
+    public function testCapabilitiesPresentInDegradedConfig(): void
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willThrowException(new \RuntimeException('no such table'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        [$dataQueryGate, $pageCreationGate] = $this->gates(true, true);
+        $admin = new AiSettingAdmin(
+            $this->createMock(ViewBuilderFactoryInterface::class),
+            $this->createMock(SecurityCheckerInterface::class),
+            $entityManager,
+            $dataQueryGate,
+            $pageCreationGate
+        );
+
+        $this->assertSame(
+            ['editing' => false, 'navigation' => false, 'dataQuery' => false, 'pageCreation' => false],
+            $admin->getConfig()['assistant']['capabilities']
+        );
+    }
+
     public function testConfigCarriesAgentName(): void
     {
         $setting = $this->enabledSetting();
@@ -121,10 +185,13 @@ class AiSettingAdminTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        [$dataQueryGate, $pageCreationGate] = $this->gates();
         $admin = new AiSettingAdmin(
             $this->createMock(ViewBuilderFactoryInterface::class),
             $this->createMock(SecurityCheckerInterface::class),
-            $entityManager
+            $entityManager,
+            $dataQueryGate,
+            $pageCreationGate
         );
 
         $this->assertSame('KULM Concierge', $admin->getConfig()['assistant']['agentName']);
@@ -139,10 +206,13 @@ class AiSettingAdminTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        [$dataQueryGate, $pageCreationGate] = $this->gates();
         $admin = new AiSettingAdmin(
             $this->createMock(ViewBuilderFactoryInterface::class),
             $this->createMock(SecurityCheckerInterface::class),
-            $entityManager
+            $entityManager,
+            $dataQueryGate,
+            $pageCreationGate
         );
 
         $this->assertSame('', $admin->getConfig()['assistant']['agentName']);
@@ -155,10 +225,13 @@ class AiSettingAdminTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        [$dataQueryGate, $pageCreationGate] = $this->gates();
         $admin = new AiSettingAdmin(
             $this->createMock(ViewBuilderFactoryInterface::class),
             $this->createMock(SecurityCheckerInterface::class),
-            $entityManager
+            $entityManager,
+            $dataQueryGate,
+            $pageCreationGate
         );
 
         $config = $admin->getConfig();

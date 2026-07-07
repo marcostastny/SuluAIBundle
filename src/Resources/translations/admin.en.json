@@ -95,5 +95,21 @@
     "sulu_ai.image_purpose_web": "Web",
     "sulu_ai.image_purpose_social": "Social media",
     "sulu_ai.image_purpose_print": "Print",
-    "sulu_ai.image_purpose_presentation": "Presentation"
+    "sulu_ai.image_purpose_presentation": "Presentation",
+    "sulu_ai.assistant_create": "Create",
+    "sulu_ai.assistant_created": "Created and opened",
+    "sulu_ai.assistant_create_failed": "Creating the page failed.",
+    "sulu_ai.assistant_parent": "Parent",
+    "sulu_ai.assistant_parent_homepage": "Top level",
+    "sulu_ai.assistant_expired": "This proposal is from an earlier session and can no longer be applied.",
+    "sulu_ai.assistant_sessions": "Chat history",
+    "sulu_ai.assistant_new_session": "New chat",
+    "sulu_ai.assistant_no_sessions": "No previous chats.",
+    "sulu_ai.assistant_intro_greeting": "Hi! Here's what I can help you with:",
+    "sulu_ai.assistant_intro_greeting_named": "Hi, I'm {name}. Here's what I can help you with:",
+    "sulu_ai.assistant_intro_editing": "Edit the page you have open — I propose changes, you approve them.",
+    "sulu_ai.assistant_intro_navigation": "Find and open pages, articles, snippets and forms.",
+    "sulu_ai.assistant_intro_creation": "Create new pages as drafts.",
+    "sulu_ai.assistant_intro_data": "Answer questions about stored data, e.g. form submissions.",
+    "sulu_ai.assistant_intro_images": "Generate images in the media library."
 }

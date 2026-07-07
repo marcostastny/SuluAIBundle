@@ -95,5 +95,21 @@
     "sulu_ai.image_purpose_web": "Web",
     "sulu_ai.image_purpose_social": "Social Media",
     "sulu_ai.image_purpose_print": "Druck",
-    "sulu_ai.image_purpose_presentation": "Präsentation"
+    "sulu_ai.image_purpose_presentation": "Präsentation",
+    "sulu_ai.assistant_create": "Erstellen",
+    "sulu_ai.assistant_created": "Erstellt und geöffnet",
+    "sulu_ai.assistant_create_failed": "Die Seite konnte nicht erstellt werden.",
+    "sulu_ai.assistant_parent": "Übergeordnete Seite",
+    "sulu_ai.assistant_parent_homepage": "Oberste Ebene",
+    "sulu_ai.assistant_expired": "Dieser Vorschlag stammt aus einer früheren Sitzung und kann nicht mehr angewendet werden.",
+    "sulu_ai.assistant_sessions": "Chat-Verlauf",
+    "sulu_ai.assistant_new_session": "Neuer Chat",
+    "sulu_ai.assistant_no_sessions": "Keine früheren Chats.",
+    "sulu_ai.assistant_intro_greeting": "Hallo! Dabei kann ich dich unterstützen:",
+    "sulu_ai.assistant_intro_greeting_named": "Hallo, ich bin {name}. Dabei kann ich dich unterstützen:",
+    "sulu_ai.assistant_intro_editing": "Die geöffnete Seite bearbeiten – ich schlage Änderungen vor, du bestätigst sie.",
+    "sulu_ai.assistant_intro_navigation": "Seiten, Artikel, Snippets und Formulare finden und öffnen.",
+    "sulu_ai.assistant_intro_creation": "Neue Seiten als Entwurf anlegen.",
+    "sulu_ai.assistant_intro_data": "Fragen zu gespeicherten Daten beantworten, z. B. Formulareinsendungen.",
+    "sulu_ai.assistant_intro_images": "Bilder in der Mediathek generieren."
 }

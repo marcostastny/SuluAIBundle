@@ -44,7 +44,8 @@ class NavigationCard extends React.Component {
 
         // Arm the multiturn loop exactly once per card: the continuation fires
         // as soon as the opened page's form bridge registers its context.
-        if (this.props.action.resume && !this.props.action.resumed) {
+        // Cards restored from a persisted session never resume.
+        if (this.props.action.resume && !this.props.action.restored && !this.props.action.resumed) {
             this.props.action.resumed = true;
             assistantContextStore.scheduleResume(navigationContinuationMessage(target), {id: target.id});
         }
@@ -82,7 +83,7 @@ class NavigationCard extends React.Component {
                         }
                     </div>
                 ))}
-                {!!navigateAction.resume && !navigateAction.opened && !navigateAction.cancelled &&
+                {!!navigateAction.resume && !navigateAction.opened && !navigateAction.cancelled && !navigateAction.restored &&
                     <div className={styles.footer}>
                         <button className={styles.cancelButton} onClick={this.handleCancel} type="button">
                             {translate('sulu_ai.assistant_cancel')}

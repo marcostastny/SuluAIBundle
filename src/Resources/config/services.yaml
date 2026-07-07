@@ -60,6 +60,10 @@ services:
         arguments:
             $adminResources: '%sulu_search.admin_resources%'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\ResolveUrlTool:
+        arguments:
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+
     Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate:
         arguments:
             $entityManager: '@doctrine.orm.entity_manager'
@@ -78,11 +82,27 @@ services:
 
     Marcostastny\SuluAIBundle\Service\Assistant\Tool\RunSelectQueryTool: ~
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate:
+        arguments:
+            $securityChecker: '@sulu_security.security_checker'
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationValidator:
+        arguments:
+            $formMetadataProvider: '@sulu_admin.form_metadata_provider'
+            $resourceLocatorGenerator: '@sulu_route.resource_locator_generator'
+
+    Marcostastny\SuluAIBundle\Repository\ChatSessionRepository:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool
 
     Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent: ~
+
+    Marcostastny\SuluAIBundle\Service\Assistant\SessionTitleGenerator: ~
 
     Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder:
         arguments:
@@ -90,6 +110,15 @@ services:
             $seoForms: '%sulu_content.content_seo_forms%'
 
     Marcostastny\SuluAIBundle\Controller\Admin\AssistantController:
+        public: true
+        tags:
+            - { name: sulu.context, context: admin }
+            - { name: controller.service_arguments }
+
+    Marcostastny\SuluAIBundle\Controller\Admin\ChatSessionController:
+        arguments:
+            $securityChecker: '@sulu_security.security_checker'
+            $tokenStorage: '@security.token_storage'
         public: true
         tags:
             - { name: sulu.context, context: admin }

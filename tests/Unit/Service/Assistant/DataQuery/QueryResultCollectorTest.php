@@ -23,4 +23,14 @@ class QueryResultCollectorTest extends TestCase
         $this->assertSame([], $collector->all());
         $this->assertSame(1, $collector->registerCall());
     }
+
+    public function testLastAddedActionWins(): void
+    {
+        $collector = new QueryResultCollector();
+
+        $collector->add(['type' => 'queryResult', 'title' => 'Exploratory']);
+        $collector->add(['type' => 'queryResult', 'title' => 'Refined']);
+
+        $this->assertSame([['type' => 'queryResult', 'title' => 'Refined']], $collector->all());
+    }
 }

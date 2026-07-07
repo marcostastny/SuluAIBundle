@@ -61,6 +61,28 @@ class RunSelectQueryToolTest extends TestCase
         $this->assertSame(1, $actions[0]['rowCount']);
         // Card rows are untruncated.
         $this->assertSame(400, \mb_strlen($actions[0]['rows'][0][1]));
+        // The model is told the rows are already visible so it does not
+        // repeat them in its text reply - and the rows are withheld from the
+        // tool result so it cannot.
+        $this->assertStringContainsString('Do not repeat', $result['displayed']);
+        $this->assertArrayNotHasKey('rows', $result);
+        $this->assertSame(1, $result['rowCount']);
+    }
+
+    public function testTitleWithEmptyResultRecordsNoAction(): void
+    {
+        $runner = $this->createMock(DataQueryRunner::class);
+        $runner->method('run')->willReturn(['columns' => ['id'], 'rows' => []]);
+
+        $result = $this->tool($runner)->execute([
+            'sql' => 'SELECT id FROM fo_dynamics',
+            'title' => 'Latest reservations',
+        ]);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertArrayNotHasKey('displayed', $result);
+        $this->assertSame(0, $result['rowCount']);
+        $this->assertSame([], $this->collector->all());
     }
 
     public function testInvalidSqlReturnsErrorWithoutRunning(): void

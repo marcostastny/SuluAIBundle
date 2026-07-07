@@ -5,10 +5,12 @@ import {observer} from 'mobx-react';
 import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
+import {buildIntroKeys} from '../../utils/intro';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
 import QueryResultCard from './QueryResultCard';
+import CreationCard from './CreationCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -30,12 +32,32 @@ class AssistantWindow extends React.Component {
         }
     }
 
+    @observable historyOpen = false;
+
     handleToggle = () => {
         assistantContextStore.togglePanel();
     };
 
-    @action handleClear = () => {
-        assistantContextStore.clearMessages();
+    @action handleHistoryToggle = () => {
+        this.historyOpen = !this.historyOpen;
+        if (this.historyOpen) {
+            assistantContextStore.loadSessions();
+        }
+    };
+
+    @action handleNewSession = () => {
+        assistantContextStore.startNewSession();
+        this.historyOpen = false;
+    };
+
+    @action handleOpenSession = (id) => {
+        assistantContextStore.openSession(id);
+        this.historyOpen = false;
+    };
+
+    handleDeleteSession = (event, id) => {
+        event.stopPropagation();
+        assistantContextStore.deleteSession(id);
     };
 
     @action handleInputChange = (event) => {
@@ -57,6 +79,28 @@ class AssistantWindow extends React.Component {
             this.handleSend();
         }
     };
+
+    renderIntro() {
+        const keys = buildIntroKeys(assistantContextStore.capabilities);
+        const name = assistantContextStore.agentName;
+
+        return (
+            <div className={styles.messageRow}>
+                <div className={styles.assistantMessage}>
+                    <div>
+                        {name
+                            ? translate('sulu_ai.assistant_intro_greeting_named', {name})
+                            : translate('sulu_ai.assistant_intro_greeting')}
+                    </div>
+                    {keys.length > 0 &&
+                        <ul className={styles.introList}>
+                            {keys.map((key) => <li key={key}>{translate(key)}</li>)}
+                        </ul>
+                    }
+                </div>
+            </div>
+        );
+    }
 
     renderMessage = (message, index) => {
         if (message.hidden) {
@@ -94,6 +138,12 @@ class AssistantWindow extends React.Component {
                         <QueryResultCard action={messageAction} key={'query-' + actionIndex} message={message} />
                     ))
                 }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'createPage')
+                    .map((messageAction, actionIndex) => (
+                        <CreationCard action={messageAction} key={'create-' + actionIndex} message={message} />
+                    ))
+                }
             </div>
         );
     };
@@ -106,11 +156,24 @@ class AssistantWindow extends React.Component {
         return (
             <div className={styles.panel}>
                 <div className={styles.header}>
-                    <span className={styles.title}>{assistantContextStore.agentName || translate('sulu_ai.assistant')}</span>
+                    <div className={styles.titleBlock}>
+                        <span className={styles.title}>{assistantContextStore.agentName || translate('sulu_ai.assistant')}</span>
+                        {!!assistantContextStore.sessionTitle &&
+                            <span className={styles.subtitle}>{assistantContextStore.sessionTitle}</span>
+                        }
+                    </div>
                     <button
-                        aria-label={translate('sulu_ai.assistant_clear')}
+                        aria-label={translate('sulu_ai.assistant_sessions')}
                         className={styles.closeButton}
-                        onClick={this.handleClear}
+                        onClick={this.handleHistoryToggle}
+                        type="button"
+                    >
+                        <Icon name="su-clock" />
+                    </button>
+                    <button
+                        aria-label={translate('sulu_ai.assistant_new_session')}
+                        className={styles.closeButton}
+                        onClick={this.handleNewSession}
                         type="button"
                     >
                         <Icon name="su-trash-alt" />
@@ -124,7 +187,49 @@ class AssistantWindow extends React.Component {
                         <Icon name="su-times" />
                     </button>
                 </div>
+                {this.historyOpen &&
+                    <div className={styles.sessionsOverlay}>
+                        <button className={styles.newSessionButton} onClick={this.handleNewSession} type="button">
+                            {translate('sulu_ai.assistant_new_session')}
+                        </button>
+                        {assistantContextStore.sessionsLoading &&
+                            <div className={styles.sessionsEmpty}>{translate('sulu_ai.assistant_thinking')}</div>
+                        }
+                        {!assistantContextStore.sessionsLoading && assistantContextStore.sessions.length === 0 &&
+                            <div className={styles.sessionsEmpty}>{translate('sulu_ai.assistant_no_sessions')}</div>
+                        }
+                        {!assistantContextStore.sessionsLoading && assistantContextStore.sessions.map((session) => (
+                            <div
+                                className={styles.sessionRow}
+                                key={session.id}
+                                onClick={() => this.handleOpenSession(session.id)}
+                                role="button"
+                            >
+                                <div className={styles.sessionInfo}>
+                                    <div className={styles.sessionTitle}>
+                                        {session.title || translate('sulu_ai.assistant_new_session')}
+                                    </div>
+                                    <div className={styles.sessionDate}>
+                                        {new Date(session.changed).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <button
+                                    aria-label={translate('sulu_admin.delete')}
+                                    className={styles.sessionDeleteButton}
+                                    onClick={(event) => this.handleDeleteSession(event, session.id)}
+                                    type="button"
+                                >
+                                    <Icon name="su-trash-alt" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                }
                 <div className={styles.messages}>
+                    {assistantContextStore.messages.filter((message) => !message.hidden).length === 0 &&
+                        !assistantContextStore.loading &&
+                        this.renderIntro()
+                    }
                     {assistantContextStore.messages.map(this.renderMessage)}
                     {assistantContextStore.loading &&
                         <div className={styles.assistantMessage}>{translate('sulu_ai.assistant_thinking')}</div>

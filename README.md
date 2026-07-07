@@ -130,6 +130,36 @@ Open **Settings → AI Settings**, enter the API URL (e.g.
 `https://api.openai.com/v1`), model (e.g. `gpt-4o-mini`) and API key, toggle
 **Enabled**, and save. All AI features share this configuration.
 
+#### Recommended model settings
+
+**Use a model router.** Point the API URL at an OpenAI-compatible router such
+as [OpenRouter](https://openrouter.ai/) or a (self-hosted)
+[LiteLLM](https://www.litellm.ai/) proxy instead of a single vendor's API.
+Every feature in this bundle speaks the OpenAI chat/images protocol, so behind
+a router the model fields simply take router ids (e.g.
+`gemini/gemini-3.1-flash-lite` or `openrouter/bytedance-seed/seedream-4.5`)
+and you can mix vendors, compare models and swap them later without touching
+the project — and the router's API key is the only one the bundle needs.
+
+**Chat model.** The assistant is a tool-calling loop of many small requests,
+every proposed change is validated server-side, and the user approves each
+step — raw model size buys little here, while latency is felt in every chat
+turn. A quick, small model is the sweet spot: the agent runs well on
+`gemini/gemini-3.1-flash-lite`. Pick a model that accepts image input
+(vision): the same model also writes media titles and alt texts from image
+previews (*Generate meta with AI* in the media library), which fails on
+text-only models.
+
+**Image models.** Prefer models with reference-image support (toggle
+*Supports reference images*) so editors can restyle existing media and keep a
+consistent brand look — e.g. Google's image family:
+`gemini/gemini-2.5-flash-image` for fast, cheap drafts and
+`gemini/gemini-3-pro-image` for final-quality results and legible text inside
+images. Because the generator sends one request per selected model, adding one
+or two text-to-image-only alternatives (e.g.
+`openrouter/bytedance-seed/seedream-4.5`) lets editors generate variants side
+by side and pick the best.
+
 ### Meta generation
 
 1. Open a page, **save** it, then open its **Meta / SEO** tab.

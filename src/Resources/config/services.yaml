@@ -78,6 +78,11 @@ services:
 
     Marcostastny\SuluAIBundle\Service\Assistant\Tool\RunSelectQueryTool: ~
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate:
+        arguments:
+            $securityChecker: '@sulu_security.security_checker'
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

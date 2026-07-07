@@ -11,7 +11,12 @@ AI features for [Sulu](https://sulu.io/) 3.
   content (pages, snippets, articles and forms) and opens the right edit view
   after the user confirms with a click. On a page's content tab it additionally
   understands the page and its template's content blocks and edits the page via
-  chat — every change is shown as a diff and only applied after approval.
+  chat — every change is shown as a diff and only applied after approval. It can
+  also **create new pages as drafts** (for users with the webspace ADD
+  permission) and continue filling their content, and every conversation is
+  stored as a **per-user chat session** with an AI-generated title, reachable
+  from a history menu in the chat header. An empty chat greets the user with an
+  intro listing exactly the capabilities their permissions allow.
 - An **AI Image Generator** reachable from the media library toolbar and the
   media-selection popup: generate images from a prompt (with style, format,
   resolution, purpose, model selection and optional reference images) through
@@ -49,7 +54,9 @@ sulu_ai_admin_api:
     prefix: /admin/api
 ```
 
-Update the schema (Sulu uses the admin kernel):
+Update the schema (Sulu uses the admin kernel; this creates the
+`sulu_ai_settings` and `sulu_ai_chat_sessions` tables — rerun it after bundle
+updates):
 
 ```bash
 bin/adminconsole doctrine:schema:update --force
@@ -110,6 +117,11 @@ Grant the relevant permissions to each role under *Settings → Roles*. The
 generate-meta button and the assistant only appear for users who have **View**
 on the respective context, and the endpoints enforce the same permissions.
 
+Page creation from chat needs no extra AI context: it is offered to assistant
+users who also have Sulu's **Add** permission on at least one webspace
+(*Settings → Roles → Webspaces*), and the page is created through Sulu's own
+page API under the user's session, so Sulu security stays authoritative.
+
 ## Usage
 
 ### AI Settings
@@ -141,7 +153,24 @@ language — "I want to edit the table reservation form". The assistant searches
 pages, snippets, articles and forms (only content you may edit) and answers
 with a result card. Clicking **Open** navigates to the edit view — never
 automatically, and Sulu's unsaved-changes dialog still protects a dirty form.
-The conversation survives navigation; the trash icon in the header clears it.
+The conversation survives navigation.
+
+**Chat sessions:** every conversation is stored server-side per user (the last
+20 sessions, capped at 200 messages each) and titled by the AI after the first
+exchange. The clock icon in the chat header opens the history: start a **new
+chat**, reopen an old session (the conversation continues where it left off —
+proposal cards from earlier sessions render as *expired*, query-result tables
+stay downloadable, open-buttons keep working), or delete sessions. The trash
+icon starts a new chat; the old one remains in the history. An empty chat
+starts with an intro message listing only the features the current user's
+permissions allow — unavailable features are neither mentioned nor offered.
+
+**Creating pages:** ask for a new page — "Erstelle eine neue Seite 'Wellness
+Weekend' unter Angebote". The assistant finds the parent, proposes title,
+template, parent and URL as a **creation card**; clicking **Create** creates
+the page as an unpublished draft via Sulu's own page API and opens it, and the
+assistant continues by proposing the page content there. Requires Sulu's
+webspace Add permission (see Permissions).
 
 **Editing pages (content tab):**
 
@@ -216,6 +245,20 @@ schema-qualified names); a LIMIT is enforced and the query runs inside a READ
 ONLY transaction with a statement timeout. Table cards post their SQL to
 `POST /admin/api/ai/assistant/query-export`, which revalidates it with the
 same rules (larger row cap) and streams CSV.
+
+Page creation is a terminal tool like navigation: `propose_page_creation` is
+validated server-side (template exists, parent must come from `search_content`
+or be `"homepage"`, URL composed by Sulu's resource-locator generator), and the
+approval card then calls Sulu's native `POST /admin/api/pages` from the
+browser — under the user's own session and permissions — before navigating to
+the new draft.
+
+Chat sessions are written through by the chat endpoint itself: the client sends
+the full history (including serializable action snapshots) with a `sessionId`,
+the server persists it per user (`sulu_ai_chat_sessions`) and generates the
+title with one extra completion on the first turn. `GET/DELETE
+/admin/api/ai/assistant/sessions[/{id}]` list, load and delete only the current
+user's sessions.
 
 In both cases the API key never leaves the server.
 

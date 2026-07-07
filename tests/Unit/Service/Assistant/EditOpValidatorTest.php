@@ -429,6 +429,58 @@ class EditOpValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
     }
 
+    public function testInsertBlockWithNestedBlockContentPasses(): void
+    {
+        $ops = [['op' => 'insertBlock', 'path' => '/blocks/1/cards', 'index' => 1, 'block' => [
+            'type' => 'card',
+            'head' => 'Anreise',
+            'rows' => [
+                ['type' => 'row', 'label' => 'Check-in', 'value' => '14:00'],
+                ['type' => 'row', 'label' => 'Parkplatz', 'value' => 'kostenlos'],
+            ],
+        ]]];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
+    public function testInsertBlockRejectsInvalidNestedBlockContent(): void
+    {
+        $errors = $this->validator->validate(
+            [['op' => 'insertBlock', 'path' => '/blocks/1/cards', 'index' => 0, 'block' => [
+                'type' => 'card',
+                'rows' => [['type' => 'row', 'price' => 'CHF 1']],
+            ]]],
+            $this->nestedSchema(),
+            $this->nestedFormData()
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('block type "row" has no field "price"', $errors[0]);
+    }
+
+    public function testOpDescendingThroughRestructuredContainerIsRejected(): void
+    {
+        $ops = [
+            ['op' => 'insertBlock', 'path' => '/blocks', 'index' => 0, 'block' => ['type' => 'textBlock', 'text' => 'x']],
+            ['op' => 'setBlockField', 'path' => '/blocks/2/cards/0/rows/0/value', 'value' => 'CHF 3.50'],
+        ];
+
+        $errors = $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData());
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('restructured by an earlier operation', $errors[0]);
+    }
+
+    public function testInnerEditBeforeAncestorRestructureIsAccepted(): void
+    {
+        $ops = [
+            ['op' => 'setBlockField', 'path' => '/blocks/1/cards/0/rows/0/value', 'value' => 'CHF 3.50'],
+            ['op' => 'insertBlock', 'path' => '/blocks', 'index' => 0, 'block' => ['type' => 'textBlock', 'text' => 'x']],
+        ];
+
+        $this->assertSame([], $this->validator->validate($ops, $this->nestedSchema(), $this->nestedFormData()));
+    }
+
     public function testErrorsArePrefixedWithOpIndex(): void
     {
         $errors = $this->validator->validate(

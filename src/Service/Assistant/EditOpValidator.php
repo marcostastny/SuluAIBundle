@@ -201,7 +201,9 @@ class EditOpValidator
     }
 
     /**
-     * Validates a full block value as inserted.
+     * Validates a full block value as inserted. Fields of type "block" accept
+     * a list of nested block objects, validated recursively against that
+     * field's blockTypes.
      *
      * @param array<string, mixed> $block
      * @param array<string, array<string, mixed>> $blockTypes
@@ -220,6 +222,19 @@ class EditOpValidator
             $blockFieldDef = $typeFields[$key] ?? null;
             if (null === $blockFieldDef) {
                 return \sprintf('block type "%s" has no field "%s".', $blockType, $key);
+            }
+            if ('block' === ($blockFieldDef['type'] ?? '')) {
+                if (!\is_array($blockValue) || !\array_is_list($blockValue)) {
+                    return \sprintf('field "%s" of block "%s" must be a list of nested blocks.', $key, $blockType);
+                }
+                foreach ($blockValue as $child) {
+                    $error = $this->validateBlockValue(\is_array($child) ? $child : [], $blockFieldDef['blockTypes'] ?? []);
+                    if (null !== $error) {
+                        return $error;
+                    }
+                }
+
+                continue;
             }
             if (!$this->isEditableField($blockFieldDef)) {
                 return \sprintf('field "%s" of block "%s" is a "%s" field, which the assistant cannot set.', $key, $blockType, (string) ($blockFieldDef['type'] ?? ''));

@@ -95,5 +95,11 @@
     "sulu_ai.image_purpose_web": "Web",
     "sulu_ai.image_purpose_social": "Social media",
     "sulu_ai.image_purpose_print": "Print",
-    "sulu_ai.image_purpose_presentation": "Presentation"
+    "sulu_ai.image_purpose_presentation": "Presentation",
+    "sulu_ai.assistant_create": "Create",
+    "sulu_ai.assistant_created": "Created and opened",
+    "sulu_ai.assistant_create_failed": "Creating the page failed.",
+    "sulu_ai.assistant_parent": "Parent",
+    "sulu_ai.assistant_parent_homepage": "Top level",
+    "sulu_ai.assistant_expired": "This proposal is from an earlier session and can no longer be applied."
 }

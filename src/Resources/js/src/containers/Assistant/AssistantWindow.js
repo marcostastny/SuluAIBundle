@@ -9,6 +9,7 @@ import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
 import QueryResultCard from './QueryResultCard';
+import CreationCard from './CreationCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -92,6 +93,12 @@ class AssistantWindow extends React.Component {
                     .filter((messageAction) => messageAction.type === 'queryResult')
                     .map((messageAction, actionIndex) => (
                         <QueryResultCard action={messageAction} key={'query-' + actionIndex} message={message} />
+                    ))
+                }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'createPage')
+                    .map((messageAction, actionIndex) => (
+                        <CreationCard action={messageAction} key={'create-' + actionIndex} message={message} />
                     ))
                 }
             </div>

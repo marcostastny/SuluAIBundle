@@ -16,6 +16,11 @@ export function tabSwitchContinuationMessage(tab) {
     return '[The user switched to the "' + tab + '" tab. The context of this message is that tab. Continue the task.]';
 }
 
+export function creationContinuationMessage(title) {
+    return '[The user created and opened the new page "' + (title || '') + '". '
+        + 'The page context of this message is the new page - it has no content yet. Continue the task and propose the content now.]';
+}
+
 export function applyContinuationMessage() {
     return '[The user approved and applied the proposed changes. Continue the task.]';
 }

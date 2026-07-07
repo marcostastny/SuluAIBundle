@@ -186,7 +186,7 @@ class AssistantContextStore {
                 // Initialize the per-card status flags now: mobx 4 only
                 // observes keys that exist when the object becomes observable,
                 // so flags added later would never re-render the cards.
-                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false};
+                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false, restored: false};
 
                 if (responseAction.type === 'proposeEdits') {
                     return {
@@ -199,6 +199,9 @@ class AssistantContextStore {
                     // The Requester response transform turns the row arrays
                     // into numeric-keyed objects — restore real arrays.
                     return {...base, rows: normalizeRows(responseAction.rows)};
+                }
+                if (responseAction.type === 'createPage') {
+                    return {...base, creating: false, failed: false};
                 }
 
                 return base;

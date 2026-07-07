@@ -84,6 +84,10 @@ class AssistantWindow extends React.Component {
         assistantContextStore.sendMessage(text);
     };
 
+    handleStop = () => {
+        assistantContextStore.stopStreaming();
+    };
+
     handleKeyDown = (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -267,14 +271,23 @@ class AssistantWindow extends React.Component {
                         rows={2}
                         value={this.inputValue}
                     />
-                    <button
-                        className={styles.sendButton}
-                        disabled={assistantContextStore.loading}
-                        onClick={this.handleSend}
-                        type="button"
-                    >
-                        <Icon name="su-angle-right" />
-                    </button>
+                    {assistantContextStore.loading
+                        ? <button
+                            aria-label={translate('sulu_ai.assistant_stop')}
+                            className={styles.sendButton}
+                            onClick={this.handleStop}
+                            type="button"
+                        >
+                            <Icon name="su-square" />
+                        </button>
+                        : <button
+                            className={styles.sendButton}
+                            onClick={this.handleSend}
+                            type="button"
+                        >
+                            <Icon name="su-angle-right" />
+                        </button>
+                    }
                 </div>
             </div>
         );

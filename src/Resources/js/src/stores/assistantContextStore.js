@@ -31,6 +31,7 @@ class AssistantContextStore {
     autoContinuations = 0;
     resumeTimeout = null;
     resumeDisposer = null;
+    abortController = null;
 
     @action setAvailable(available) {
         this.available = available;
@@ -251,9 +252,16 @@ class AssistantContextStore {
         this.streamText = '';
         this.streamStatus = null;
 
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        this.abortController = controller;
+        const aborted = () => Boolean(controller && controller.signal.aborted);
+
         let terminal = false;
         let received = false;
         const onEvent = action((type, data) => {
+            if (aborted()) {
+                return;
+            }
             received = true;
             if (type === 'status') {
                 this.streamStatus = (data && data.tool) || null;
@@ -271,20 +279,31 @@ class AssistantContextStore {
             }
         });
 
-        return streamChat(STREAM_ENDPOINT, payload, onEvent).then(action(() => {
-            if (!terminal) {
-                // The stream ended without a terminal frame (connection cut).
-                this.pushErrorMessage();
+        return streamChat(STREAM_ENDPOINT, payload, onEvent, controller ? controller.signal : undefined).then(action(() => {
+            if (aborted() || terminal) {
+                return;
             }
+            // The stream ended without a terminal frame (connection cut).
+            this.pushErrorMessage();
         })).catch(action((error) => {
-            if (terminal) {
+            // A deliberate stop already finalized the UI state.
+            if (aborted() || terminal) {
                 return undefined;
             }
             if (error && error.fallback && !received) {
                 // Nothing streamed yet: the blocking endpoint is safe to use.
                 return Requester.post(ENDPOINT, payload)
-                    .then(action((response) => this.applyResponse(response, store, formData)))
-                    .catch(action(() => this.pushErrorMessage()));
+                    .then(action((response) => {
+                        // The user may have hit stop while the fallback ran.
+                        if (!aborted()) {
+                            this.applyResponse(response, store, formData);
+                        }
+                    }))
+                    .catch(action(() => {
+                        if (!aborted()) {
+                            this.pushErrorMessage();
+                        }
+                    }));
             }
             this.pushErrorMessage();
 
@@ -330,6 +349,25 @@ class AssistantContextStore {
         }
         if (response.sessionTitle) {
             this.sessionTitle = response.sessionTitle;
+        }
+        this.loading = false;
+        this.streamText = '';
+        this.streamStatus = null;
+    }
+
+    /**
+     * User-initiated stop of the in-flight streaming request: aborts the
+     * fetch and keeps whatever text already streamed as a normal assistant
+     * message, so it stays part of the conversation history.
+     */
+    @action stopStreaming() {
+        if (!this.loading || !this.abortController) {
+            return;
+        }
+        const partial = this.streamText.trim();
+        this.abortController.abort();
+        if (partial) {
+            this.messages.push({role: 'assistant', content: partial, actions: [], applied: false, discarded: false});
         }
         this.loading = false;
         this.streamText = '';

@@ -128,5 +128,6 @@
     "sulu_ai.media_meta_summary": "{processed} generiert, {skipped} übersprungen, {failed} fehlgeschlagen.",
     "sulu_ai.media_meta_aborted": "Der Lauf wurde gestoppt, weil Anfragen wiederholt fehlschlugen. Bereits generierte Metadaten sind gespeichert.",
     "sulu_ai.media_meta_cancelled": "Abgebrochen. Bereits generierte Metadaten sind gespeichert.",
-    "sulu_ai.media_meta_failed_items": "Fehlgeschlagene Bilder"
+    "sulu_ai.media_meta_failed_items": "Fehlgeschlagene Bilder",
+    "sulu_ai.assistant_stop": "Stopp"
 }

@@ -128,5 +128,6 @@
     "sulu_ai.media_meta_summary": "{processed} generated, {skipped} skipped, {failed} failed.",
     "sulu_ai.media_meta_aborted": "The run was stopped because requests kept failing. Already generated meta data is saved.",
     "sulu_ai.media_meta_cancelled": "Cancelled. Already generated meta data is saved.",
-    "sulu_ai.media_meta_failed_items": "Failed images"
+    "sulu_ai.media_meta_failed_items": "Failed images",
+    "sulu_ai.assistant_stop": "Stop"
 }

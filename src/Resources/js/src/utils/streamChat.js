@@ -13,7 +13,9 @@ const fallbackError = (message, cause) => {
 
 // POSTs like Sulu's Requester (same credentials/headers) but consumes a
 // text/event-stream response, invoking onEvent(type, data) per frame.
-export default function streamChat(url: string, body: Object, onEvent: (type: string, data: Object) => void): Promise<void> {
+// An aborted signal rejects with the original AbortError (no fallback flag),
+// so callers never retry a deliberately stopped request.
+export default function streamChat(url: string, body: Object, onEvent: (type: string, data: Object) => void, signal?: Object): Promise<void> {
     if (typeof window === 'undefined' || !window.ReadableStream || !window.TextDecoder) {
         return Promise.reject(fallbackError('Streaming not supported'));
     }
@@ -27,6 +29,7 @@ export default function streamChat(url: string, body: Object, onEvent: (type: st
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify(body),
+        signal,
     }).then(
         (response) => {
             const contentType = response.headers.get('Content-Type') || '';

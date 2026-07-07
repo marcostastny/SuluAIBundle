@@ -15,6 +15,15 @@ test('serializableActions drops circular actions instead of throwing', () => {
     expect(serializableActions([circular, {type: 'ok'}])).toEqual([{type: 'ok'}]);
 });
 
+test('serializableActions handles mobx4-style observable arrays (slice, not Array.isArray)', () => {
+    // mobx 4 observable arrays are array-likes with a slice() method whose
+    // index properties are NOT enumerable — Object.values() sees nothing.
+    const observableArrayLike = {
+        slice: () => [{type: 'navigate', store: {x: 1}, targets: [{id: '42'}]}],
+    };
+    expect(serializableActions(observableArrayLike)).toEqual([{type: 'navigate', targets: [{id: '42'}]}]);
+});
+
 test('asList passes arrays and converts numeric-keyed objects', () => {
     expect(asList([1, 2])).toEqual([1, 2]);
     expect(asList({0: 'a', 1: 'b'})).toEqual(['a', 'b']);

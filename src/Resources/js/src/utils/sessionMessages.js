@@ -2,10 +2,15 @@
 import {normalizeRows} from './dataQuery';
 
 // Sulu's Requester response transform turns nested arrays into numeric-keyed
-// objects — treat both shapes as lists everywhere below.
+// objects, and mobx 4 observable arrays are array-likes that fail
+// Array.isArray with non-enumerable index properties — treat all three
+// shapes as lists everywhere below.
 export const asList = (value: any): Array<any> => {
     if (Array.isArray(value)) {
         return value;
+    }
+    if (value && typeof value === 'object' && typeof value.slice === 'function') {
+        return value.slice();
     }
     if (value && typeof value === 'object') {
         return Object.values(value);

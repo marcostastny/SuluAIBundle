@@ -8,6 +8,7 @@ import assistantContextStore from '../../stores/assistantContextStore';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
+import QueryResultCard from './QueryResultCard';
 import styles from './assistantWindow.scss';
 
 @observer
@@ -85,6 +86,12 @@ class AssistantWindow extends React.Component {
                     .filter((messageAction) => messageAction.type === 'switchTab')
                     .map((messageAction, actionIndex) => (
                         <TabSwitchCard action={messageAction} key={'tab-' + actionIndex} message={message} />
+                    ))
+                }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'queryResult')
+                    .map((messageAction, actionIndex) => (
+                        <QueryResultCard action={messageAction} key={'query-' + actionIndex} message={message} />
                     ))
                 }
             </div>

@@ -104,6 +104,7 @@ giving them access to the API key:
 | `sulu_ai.meta_generation` | **View** to show and use the *Generate meta with AI* button on pages |
 | `sulu_ai.assistant` | **View** to show and use the assistant chat (globally and on page edit forms) |
 | `sulu_ai.image_generation` | **View** to show and use the image generator (requires image models configured in AI Settings) |
+| `sulu_ai.data_query` | **View** to let the assistant run read-only SELECT queries against the tables configured in AI Settings (results may contain personal data and are sent to the configured AI endpoint — grant deliberately) |
 
 Grant the relevant permissions to each role under *Settings → Roles*. The
 generate-meta button and the assistant only appear for users who have **View**
@@ -166,6 +167,16 @@ automatically continues with the next one — e.g. "update the room prices by
 the edits once you are there. Rejecting any step (Discard/Cancel) aborts the
 whole task; automatic continuations are capped so the loop can never run away.
 
+**Data queries (optional):** configure **Queryable tables** in AI Settings (one
+table name per line, e.g. the sulu form tables) and grant the **data query**
+permission. Users with it can ask things like "what are the latest table
+reservations?" — the assistant inspects the allowed tables, runs validated
+read-only `SELECT` queries (single statements, table allowlist, row caps, READ
+ONLY transaction, statement timeout) and answers with a summary and/or a table
+card with a **CSV download**. Query results are sent to the configured AI
+endpoint, so only allow tables (and grant the permission) where that is
+acceptable.
+
 ### Image generator
 
 1. In **AI Settings**, add one or more **Image models** (label + model id as the
@@ -196,6 +207,15 @@ a `search_content` tool (backed by Sulu's SEAL admin search index, filtered by
 the user's permissions, plus a Doctrine lookup for forms) and can only propose
 navigation targets that this tool actually returned — the browser then renders
 them as buttons and navigates via the admin router on click.
+
+When data queries are enabled, the agent additionally gets `list_data_tables`
+(schema of the allowlisted tables) and `run_select_query`. Submitted SQL is
+parsed with phpmyadmin/sql-parser and rejected unless it is a single SELECT
+over allowlisted tables (no CTEs, file/lock/variable constructs or
+schema-qualified names); a LIMIT is enforced and the query runs inside a READ
+ONLY transaction with a statement timeout. Table cards post their SQL to
+`POST /admin/api/ai/assistant/query-export`, which revalidates it with the
+same rules (larger row cap) and streams CSV.
 
 In both cases the API key never leaves the server.
 

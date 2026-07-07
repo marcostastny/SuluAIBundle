@@ -125,6 +125,9 @@ class AiSettingAdmin extends Admin
                     AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION => [
                         PermissionTypes::VIEW,
                     ],
+                    AiSetting::SECURITY_CONTEXT_DATA_QUERY => [
+                        PermissionTypes::VIEW,
+                    ],
                 ],
             ],
         ];

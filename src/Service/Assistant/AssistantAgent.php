@@ -14,7 +14,9 @@ use Marcostastny\SuluAIBundle\Service\OpenAiClient;
  */
 class AssistantAgent
 {
-    private const MAX_ITERATIONS = 5;
+    // Data-query turns legitimately need several round-trips (list tables,
+    // explore, final query, reply), so allow more than the old cap of 5.
+    private const MAX_ITERATIONS = 8;
 
     public function __construct(
         private OpenAiClient $client,

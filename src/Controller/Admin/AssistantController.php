@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use Sulu\Component\Security\Authorization\PermissionTypes;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
@@ -23,6 +25,8 @@ class AssistantController
         private AssistantAgent $agent,
         private EditOpValidator $editOpValidator,
         private SecurityCheckerInterface $securityChecker,
+        private DataQueryGate $dataQueryGate,
+        private QueryResultCollector $queryResultCollector,
     ) {
     }
 
@@ -66,6 +70,8 @@ class AssistantController
             return new JsonResponse(['message' => 'AI is not configured or not enabled.'], 400);
         }
 
+        $dataQueryAvailable = $this->dataQueryGate->isAvailable();
+
         // The SEO tab has a fixed form (no template); the content tab needs one.
         $hasPageContext = '' !== $locale && ('seo' === $tab || '' !== $template);
         $validateOps = null;
@@ -74,8 +80,8 @@ class AssistantController
         if ($hasPageContext) {
             try {
                 $built = 'seo' === $tab
-                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs)
-                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs);
+                    ? $this->contextBuilder->buildSeoTab($locale, $formData, $setting, $availableTabs, $dataQueryAvailable)
+                    : $this->contextBuilder->build($template, $locale, $formData, $setting, $availableTabs, $dataQueryAvailable);
             } catch (\RuntimeException $e) {
                 return new JsonResponse(['message' => $e->getMessage()], 400);
             }
@@ -83,7 +89,7 @@ class AssistantController
             $validateOps = fn (array $ops): array => $this->editOpValidator->validate($ops, $built['schema'], $formData);
             $tabs = ['current' => $tab, 'available' => $availableTabs];
         } else {
-            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting);
+            $systemPrompt = $this->contextBuilder->buildGlobalPrompt($setting, $dataQueryAvailable);
         }
 
         $messages = \array_values(\array_filter(\array_map(
@@ -101,6 +107,8 @@ class AssistantController
             $messages
         )));
 
+        $this->queryResultCollector->reset();
+
         try {
             $result = $this->agent->run(
                 (string) $setting->getApiUrl(),
@@ -114,6 +122,10 @@ class AssistantController
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'AI request failed: ' . $e->getMessage()], 502);
         }
+
+        // Titled run_select_query results are recorded out-of-band while the
+        // agent loop runs; surface them as cards alongside the terminal action.
+        $result['actions'] = [...$result['actions'], ...$this->queryResultCollector->all()];
 
         return new JsonResponse($result);
     }

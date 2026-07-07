@@ -4,6 +4,7 @@ import {Requester} from 'sulu-admin-bundle/services';
 import {translate} from 'sulu-admin-bundle/utils';
 import {snapshotBlockTypes} from '../utils/applyOps';
 import {MAX_AUTO_CONTINUATIONS, abortMessage, contextMatchesExpectation} from '../utils/continuation';
+import {normalizeRows} from '../utils/dataQuery';
 import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
@@ -187,13 +188,20 @@ class AssistantContextStore {
                 // so flags added later would never re-render the cards.
                 const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false};
 
-                return responseAction.type === 'proposeEdits'
-                    ? {
+                if (responseAction.type === 'proposeEdits') {
+                    return {
                         ...base,
                         store,
                         baseline: snapshotBlockTypes(formData, responseAction.ops || []),
-                    }
-                    : base;
+                    };
+                }
+                if (responseAction.type === 'queryResult') {
+                    // The Requester response transform turns the row arrays
+                    // into numeric-keyed objects — restore real arrays.
+                    return {...base, rows: normalizeRows(responseAction.rows)};
+                }
+
+                return base;
             });
             this.messages.push({
                 role: 'assistant',

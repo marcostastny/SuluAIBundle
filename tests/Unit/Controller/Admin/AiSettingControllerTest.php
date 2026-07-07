@@ -169,6 +169,53 @@ class AiSettingControllerTest extends TestCase
         $this->assertSame('Always mention the spa.', $setting->getCustomPrompt());
     }
 
+    public function testPutStoresDataQueryTables(): void
+    {
+        $setting = new AiSetting();
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'dataQueryTables' => "fo_forms\nfo_dynamics",
+        ]));
+
+        $this->assertSame("fo_forms\nfo_dynamics", $setting->getDataQueryTables());
+    }
+
+    public function testPutStoresBlankDataQueryTablesAsNull(): void
+    {
+        $setting = new AiSetting();
+        $setting->setDataQueryTables('fo_dynamics');
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'dataQueryTables' => '  ',
+        ]));
+
+        $this->assertNull($setting->getDataQueryTables());
+    }
+
+    public function testPutWithoutDataQueryKeyKeepsExistingTables(): void
+    {
+        $setting = new AiSetting();
+        $setting->setDataQueryTables('fo_dynamics');
+
+        $controller = $this->settingController($setting);
+        // An old-shape payload without the key must not wipe the allowlist.
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+        ]));
+
+        $this->assertSame('fo_dynamics', $setting->getDataQueryTables());
+    }
+
     public function testPutWithoutImageKeysKeepsExistingImageConfig(): void
     {
         $setting = new AiSetting();

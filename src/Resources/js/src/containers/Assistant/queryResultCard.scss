@@ -1,0 +1,75 @@
+.card {
+    margin: 8px 40px 8px 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.title {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: bold;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+}
+
+.table {
+    border-collapse: collapse;
+    width: 100%;
+
+    th,
+    td {
+        padding: 4px 10px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+        white-space: nowrap;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    th {
+        position: sticky;
+        top: 0;
+        background: #f7f7f7;
+        font-weight: bold;
+    }
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.row-count {
+    color: #999;
+}
+
+.download-button {
+    border: none;
+    border-radius: 4px;
+    background: #52b6ca;
+    color: #fff;
+    padding: 5px 12px;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+}
+
+.error {
+    padding: 8px 12px;
+    color: #e74c3c;
+}

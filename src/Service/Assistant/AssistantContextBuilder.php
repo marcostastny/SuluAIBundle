@@ -33,7 +33,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = []): array
+    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false): array
     {
         $typedFormMetadata = $this->formMetadataProvider->getMetadata('page', $locale, []);
         if (!$typedFormMetadata instanceof TypedFormMetadata) {
@@ -58,7 +58,8 @@ class AssistantContextBuilder
                 \sprintf('The user is editing a page (locale "%s", template "%s"), on the "content" tab.', $locale, $template),
                 $setting,
                 $availableTabs,
-                'content'
+                'content',
+                $dataQueryAvailable
             ),
             'schema' => $schema,
         ];
@@ -74,7 +75,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = []): array
+    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false): array
     {
         $formMetadata = $this->formMetadataProvider->getMetadata('content_seo', $locale, ['forms' => \array_keys($this->seoForms)]);
         if (!$formMetadata instanceof FormMetadata) {
@@ -90,7 +91,8 @@ class AssistantContextBuilder
                 \sprintf('The user is editing the SEO tab of a page (locale "%s").', $locale),
                 $setting,
                 $availableTabs,
-                'seo'
+                'seo',
+                $dataQueryAvailable
             ),
             'schema' => $schema,
         ];
@@ -99,10 +101,11 @@ class AssistantContextBuilder
     /**
      * System prompt for requests without an attached page form (global mode).
      */
-    public function buildGlobalPrompt(AiSetting $setting): string
+    public function buildGlobalPrompt(AiSetting $setting, bool $dataQueryAvailable = false): string
     {
         $navigationGuidance = $this->navigationGuidance();
         $multiStepGuidance = $this->multiStepGuidance();
+        $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
 
         $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
@@ -111,6 +114,8 @@ class AssistantContextBuilder
             {$navigationGuidance}
 
             {$multiStepGuidance}
+
+            {$dataQueryGuidance}
 
             Rules:
             - Answer in the language the user writes in.
@@ -174,12 +179,13 @@ class AssistantContextBuilder
      * @param mixed $formData
      * @param list<string> $availableTabs
      */
-    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab): string
+    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab, bool $dataQueryAvailable = false): string
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
         $navigationGuidance = $this->navigationGuidance();
         $multiStepGuidance = $this->multiStepGuidance(\count($availableTabs) >= 2);
+        $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
         $tabGuidance = $this->tabGuidance($availableTabs, $currentTab);
 
         $prompt = <<<PROMPT
@@ -209,6 +215,8 @@ class AssistantContextBuilder
 
             {$multiStepGuidance}
 
+            {$dataQueryGuidance}
+
             {$tabGuidance}
 
             TEMPLATE SCHEMA:
@@ -235,6 +243,24 @@ class AssistantContextBuilder
             - Propose one action per turn. Set "resume": true on the action whenever the overall task is not finished after it - once the user approves the action you are automatically called again with the updated context and can continue.
             - If the user rejects a proposed action, the whole task is aborted. Do not retry unless the user asks again.
             - When the requested work is complete, reply with a short plain-text confirmation and no tool call.
+            GUIDANCE;
+    }
+
+    private function dataQueryGuidance(bool $available): string
+    {
+        // Only advertise the data-query tools when they are registered for
+        // this request, so the model never plans around unavailable tools.
+        if (!$available) {
+            return '';
+        }
+
+        return <<<'GUIDANCE'
+            Data queries:
+            - You can answer questions about stored data (e.g. form submissions) by running read-only SQL SELECT queries.
+            - Always call list_data_tables first to see which tables you may query and their exact columns; then call run_select_query.
+            - Only single SELECT statements are allowed: no CTEs/WITH, no schema-qualified names, results capped at 100 rows. Order by a date column DESC for "latest" questions.
+            - When the user wants to see a list or table, pass a short "title" to run_select_query - the user is then shown the result as a table with a CSV download. Pass a title ONLY on the one final query whose rows answer the user - never on exploratory or intermediate queries, and never when the user only wants a summary in text.
+            - Summarize results in the user's language. Never invent rows or values; if a query fails or returns nothing, say so.
             GUIDANCE;
     }
 

@@ -92,6 +92,11 @@ class AiSettingController extends AbstractRestController implements SecuredContr
             $setting->setCustomPrompt('' === $customPrompt ? null : $customPrompt);
         }
 
+        if (\array_key_exists('dataQueryTables', $data)) {
+            $dataQueryTables = \trim((string) $data['dataQueryTables']);
+            $setting->setDataQueryTables('' === $dataQueryTables ? null : $dataQueryTables);
+        }
+
         $this->entityManager->flush();
 
         return $this->handleView($this->view($setting));

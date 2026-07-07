@@ -10,6 +10,8 @@ use Marcostastny\SuluAIBundle\Controller\Admin\AssistantController;
 use Marcostastny\SuluAIBundle\Entity\AiSetting;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
 use PHPUnit\Framework\TestCase;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
@@ -18,23 +20,33 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 class AssistantControllerTest extends TestCase
 {
+    private QueryResultCollector $queryResultCollector;
+
     private function controller(
         ?AiSetting $setting,
         ?AssistantContextBuilder $contextBuilder = null,
         ?AssistantAgent $agent = null,
-        ?SecurityCheckerInterface $securityChecker = null
+        ?SecurityCheckerInterface $securityChecker = null,
+        bool $dataQueryAvailable = false
     ): AssistantController {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        $dataQueryGate = $this->createMock(DataQueryGate::class);
+        $dataQueryGate->method('isAvailable')->willReturn($dataQueryAvailable);
+
+        $this->queryResultCollector = new QueryResultCollector();
+
         return new AssistantController(
             $entityManager,
             $contextBuilder ?? $this->createMock(AssistantContextBuilder::class),
             $agent ?? $this->createMock(AssistantAgent::class),
             new EditOpValidator(),
-            $securityChecker ?? $this->createMock(SecurityCheckerInterface::class)
+            $securityChecker ?? $this->createMock(SecurityCheckerInterface::class),
+            $dataQueryGate,
+            $this->queryResultCollector
         );
     }
 
@@ -242,5 +254,41 @@ class AssistantControllerTest extends TestCase
         ]));
 
         $this->assertSame(502, $response->getStatusCode());
+    }
+
+    public function testDataQueryAvailabilityIsPassedToTheGlobalPrompt(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->expects($this->once())
+            ->method('buildGlobalPrompt')
+            ->with($this->isInstanceOf(AiSetting::class), true)
+            ->willReturn('global prompt');
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturn(['reply' => 'ok', 'actions' => []]);
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent, null, true)
+            ->postAction($this->jsonRequest(['messages' => [['role' => 'user', 'content' => 'hi']]]));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testCollectedQueryResultsAreAppendedToTheActions(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $queryResultAction = ['type' => 'queryResult', 'title' => 'Latest', 'columns' => ['id'], 'rows' => [['1']], 'rowCount' => 1, 'sql' => 'SELECT id FROM fo_dynamics'];
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(function () use ($queryResultAction): array {
+            // Simulates run_select_query recording a titled result mid-run.
+            $this->queryResultCollector->add($queryResultAction);
+
+            return ['reply' => 'Here you go.', 'actions' => []];
+        });
+
+        $response = $this->controller($this->enabledSetting(), $contextBuilder, $agent)
+            ->postAction($this->jsonRequest(['messages' => [['role' => 'user', 'content' => 'latest reservations']]]));
+
+        $decoded = \json_decode((string) $response->getContent(), true);
+        $this->assertSame([$queryResultAction], $decoded['actions']);
     }
 }

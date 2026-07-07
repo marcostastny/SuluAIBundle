@@ -88,6 +88,10 @@ services:
             $formMetadataProvider: '@sulu_admin.form_metadata_provider'
             $resourceLocatorGenerator: '@sulu_route.resource_locator_generator'
 
+    Marcostastny\SuluAIBundle\Repository\ChatSessionRepository:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+
     Marcostastny\SuluAIBundle\Service\Assistant\ToolRegistry:
         arguments:
             $tools: !tagged_iterator sulu_ai.assistant_tool

@@ -8,4 +8,10 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <!-- Fail on the bundle's own deprecations, ignore indirect ones
+             triggered inside Sulu/Symfony vendor code (e.g. loading the
+             Sulu User entity). -->
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[self]=0"/>
+    </php>
 </phpunit>

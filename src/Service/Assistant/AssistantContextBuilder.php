@@ -174,6 +174,7 @@ class AssistantContextBuilder
         return <<<'GUIDANCE'
             Finding and opening content:
             - Use the search_content tool to find existing pages, snippets, articles and forms by title or text.
+            - When the user pastes a URL or path of the website, call resolve_url with it - it looks up the exact page in the route table. Fall back to search_content only when it finds nothing.
             - To let the user open a result, call the propose_navigation tool with targets (type, id, locale) exactly as returned by search_content, plus a one-sentence message. Never invent ids and never output raw admin links in prose.
             - Navigation only happens after the user clicks a button - you never redirect automatically.
             GUIDANCE;

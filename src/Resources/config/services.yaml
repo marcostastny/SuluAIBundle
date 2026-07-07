@@ -60,6 +60,10 @@ services:
         arguments:
             $adminResources: '%sulu_search.admin_resources%'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Tool\ResolveUrlTool:
+        arguments:
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+
     Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate:
         arguments:
             $entityManager: '@doctrine.orm.entity_manager'

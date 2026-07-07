@@ -5,7 +5,7 @@ import {observer} from 'mobx-react';
 import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
-import {buildIntroKeys} from '../../utils/intro';
+import {buildIntroKeys, buildSuggestionKeys} from '../../utils/intro';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
@@ -101,8 +101,16 @@ class AssistantWindow extends React.Component {
         return translate((status && STATUS_KEYS[status]) || 'sulu_ai.assistant_thinking');
     }
 
+    handleSuggestion = (key) => {
+        assistantContextStore.sendMessage(translate(key));
+    };
+
     renderIntro() {
         const keys = buildIntroKeys(assistantContextStore.capabilities);
+        const suggestionKeys = buildSuggestionKeys(
+            assistantContextStore.capabilities,
+            Boolean(assistantContextStore.context)
+        );
         const name = assistantContextStore.agentName;
 
         return (
@@ -119,6 +127,20 @@ class AssistantWindow extends React.Component {
                         </ul>
                     }
                 </div>
+                {suggestionKeys.length > 0 &&
+                    <div className={styles.chips}>
+                        {suggestionKeys.map((key) => (
+                            <button
+                                className={styles.chip}
+                                key={key}
+                                onClick={() => this.handleSuggestion(key)}
+                                type="button"
+                            >
+                                {translate(key)}
+                            </button>
+                        ))}
+                    </div>
+                }
             </div>
         );
     }

@@ -129,5 +129,11 @@
     "sulu_ai.media_meta_aborted": "The run was stopped because requests kept failing. Already generated meta data is saved.",
     "sulu_ai.media_meta_cancelled": "Cancelled. Already generated meta data is saved.",
     "sulu_ai.media_meta_failed_items": "Failed images",
-    "sulu_ai.assistant_stop": "Stop"
+    "sulu_ai.assistant_stop": "Stop",
+    "sulu_ai.assistant_intro_publish": "Publish or unpublish pages — you confirm every change.",
+    "sulu_ai.assistant_chip_improve": "Improve the wording on this page",
+    "sulu_ai.assistant_chip_seo": "Generate SEO metadata for this page",
+    "sulu_ai.assistant_chip_publish": "Publish this page",
+    "sulu_ai.assistant_chip_submissions": "How many form submissions were there this month?",
+    "sulu_ai.assistant_chip_create": "Create a new page"
 }

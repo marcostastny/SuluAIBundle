@@ -12,6 +12,7 @@ use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use PHPUnit\Framework\TestCase;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewBuilderFactoryInterface;
+use Sulu\Bundle\MediaBundle\Admin\MediaAdmin;
 use Sulu\Component\Security\Authorization\PermissionTypes;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
 
@@ -31,7 +32,9 @@ class AiSettingAdminTest extends TestCase
         ?AiSetting $setting,
         bool $hasAssistantPermission,
         bool $dataQueryAvailable = false,
-        bool $pageCreationAvailable = false
+        bool $pageCreationAvailable = false,
+        bool $hasMetaPermission = false,
+        bool $hasMediaEditPermission = false
     ): AiSettingAdmin {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
@@ -40,10 +43,23 @@ class AiSettingAdminTest extends TestCase
 
         $securityChecker = $this->createMock(SecurityCheckerInterface::class);
         $securityChecker->method('hasPermission')->willReturnCallback(
-            static fn (mixed $context, string $permission): bool => \in_array($context, [
-                AiSetting::SECURITY_CONTEXT_ASSISTANT,
-                AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
-            ], true) && PermissionTypes::VIEW === $permission && $hasAssistantPermission
+            static function (mixed $context, string $permission) use (
+                $hasAssistantPermission,
+                $hasMetaPermission,
+                $hasMediaEditPermission
+            ): bool {
+                if (AiSetting::SECURITY_CONTEXT_GENERATION === $context) {
+                    return PermissionTypes::VIEW === $permission && $hasMetaPermission;
+                }
+                if (MediaAdmin::SECURITY_CONTEXT === $context) {
+                    return PermissionTypes::EDIT === $permission && $hasMediaEditPermission;
+                }
+
+                return \in_array($context, [
+                    AiSetting::SECURITY_CONTEXT_ASSISTANT,
+                    AiSetting::SECURITY_CONTEXT_IMAGE_GENERATION,
+                ], true) && PermissionTypes::VIEW === $permission && $hasAssistantPermission;
+            }
         );
 
         [$dataQueryGate, $pageCreationGate] = $this->gates($dataQueryAvailable, $pageCreationAvailable);
@@ -239,5 +255,26 @@ class AiSettingAdminTest extends TestCase
         $this->assertFalse($config['assistant']['available']);
         $this->assertFalse($config['imageGeneration']['available']);
         $this->assertSame([], $config['imageGeneration']['models']);
+    }
+
+    public function testMediaMetaAvailableWhenConfiguredWithBothPermissions(): void
+    {
+        $config = $this->admin($this->enabledSetting(), false, false, false, true, true)->getConfig();
+
+        $this->assertTrue($config['mediaMeta']['available']);
+    }
+
+    public function testMediaMetaUnavailableWithoutMediaEditPermission(): void
+    {
+        $config = $this->admin($this->enabledSetting(), false, false, false, true, false)->getConfig();
+
+        $this->assertFalse($config['mediaMeta']['available']);
+    }
+
+    public function testMediaMetaUnavailableWhenNotConfigured(): void
+    {
+        $this->assertFalse(
+            $this->admin(null, false, false, false, true, true)->getConfig()['mediaMeta']['available']
+        );
     }
 }

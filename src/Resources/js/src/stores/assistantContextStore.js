@@ -6,9 +6,11 @@ import {snapshotBlockTypes} from '../utils/applyOps';
 import {MAX_AUTO_CONTINUATIONS, abortMessage, contextMatchesExpectation} from '../utils/continuation';
 import {normalizeRows} from '../utils/dataQuery';
 import {asList, restoreMessages, serializableActions} from '../utils/sessionMessages';
+import streamChat from '../utils/streamChat';
 import routerStore from './routerStore';
 
 const ENDPOINT = '/admin/api/ai/assistant/chat';
+const STREAM_ENDPOINT = '/admin/api/ai/assistant/chat-stream';
 const SESSIONS_ENDPOINT = '/admin/api/ai/assistant/sessions';
 
 class AssistantContextStore {
@@ -24,6 +26,8 @@ class AssistantContextStore {
     @observable.ref sessions = [];
     @observable sessionsLoading = false;
     @observable.ref capabilities = {};
+    @observable streamText = '';
+    @observable streamStatus = null;
     autoContinuations = 0;
     resumeTimeout = null;
     resumeDisposer = null;
@@ -229,7 +233,7 @@ class AssistantContextStore {
                 actions: serializableActions(message.actions),
             }));
 
-        return Requester.post(ENDPOINT, {
+        const payload = {
             sessionId: this.sessionId,
             context: context && resourceFormStore ? {
                 type: context.type,
@@ -242,55 +246,107 @@ class AssistantContextStore {
             } : null,
             formData,
             messages: history,
-        }).then(action((response) => {
-            this.loading = false;
-            const actions = (response.actions || []).map((responseAction) => {
-                // Initialize the per-card status flags now: mobx 4 only
-                // observes keys that exist when the object becomes observable,
-                // so flags added later would never re-render the cards.
-                const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false, restored: false};
+        };
 
-                if (responseAction.type === 'proposeEdits') {
-                    return {
-                        ...base,
-                        store,
-                        baseline: snapshotBlockTypes(formData, responseAction.ops || []),
-                    };
-                }
-                if (responseAction.type === 'queryResult') {
-                    // The Requester response transform turns the row arrays
-                    // into numeric-keyed objects — restore real arrays.
-                    return {...base, rows: normalizeRows(responseAction.rows)};
-                }
-                if (responseAction.type === 'createPage') {
-                    return {...base, creating: false, failed: false};
-                }
+        this.streamText = '';
+        this.streamStatus = null;
 
-                return base;
-            });
-            this.messages.push({
-                role: 'assistant',
-                content: response.reply || '',
-                actions,
-                applied: false,
-                discarded: false,
-            });
-            if (response.sessionId) {
-                this.sessionId = response.sessionId;
+        let terminal = false;
+        let received = false;
+        const onEvent = action((type, data) => {
+            received = true;
+            if (type === 'status') {
+                this.streamStatus = (data && data.tool) || null;
+            } else if (type === 'delta') {
+                this.streamStatus = null;
+                this.streamText += (data && data.text) || '';
+            } else if (type === 'reset') {
+                this.streamText = '';
+            } else if (type === 'result') {
+                terminal = true;
+                this.applyResponse(data, store, formData);
+            } else if (type === 'error') {
+                terminal = true;
+                this.pushErrorMessage();
             }
-            if (response.sessionTitle) {
-                this.sessionTitle = response.sessionTitle;
+        });
+
+        return streamChat(STREAM_ENDPOINT, payload, onEvent).then(action(() => {
+            if (!terminal) {
+                // The stream ended without a terminal frame (connection cut).
+                this.pushErrorMessage();
             }
-        })).catch(action(() => {
-            this.loading = false;
-            this.messages.push({
-                role: 'error',
-                content: translate('sulu_ai.assistant_error'),
-                actions: [],
-                applied: false,
-                discarded: false,
-            });
+        })).catch(action((error) => {
+            if (terminal) {
+                return undefined;
+            }
+            if (error && error.fallback && !received) {
+                // Nothing streamed yet: the blocking endpoint is safe to use.
+                return Requester.post(ENDPOINT, payload)
+                    .then(action((response) => this.applyResponse(response, store, formData)))
+                    .catch(action(() => this.pushErrorMessage()));
+            }
+            this.pushErrorMessage();
+
+            return undefined;
         }));
+    }
+
+    @action applyResponse(response, store, formData) {
+        const actions = (response.actions || []).map((responseAction) => {
+            // Initialize the per-card status flags now: mobx 4 only
+            // observes keys that exist when the object becomes observable,
+            // so flags added later would never re-render the cards.
+            const base = {...responseAction, opened: false, resumed: false, done: false, cancelled: false, restored: false};
+
+            if (responseAction.type === 'proposeEdits') {
+                return {
+                    ...base,
+                    store,
+                    baseline: snapshotBlockTypes(formData, responseAction.ops || []),
+                };
+            }
+            if (responseAction.type === 'queryResult') {
+                // The Requester response transform turns the row arrays
+                // into numeric-keyed objects — restore real arrays. (The
+                // streamed path delivers real arrays; this is a no-op there.)
+                return {...base, rows: normalizeRows(responseAction.rows)};
+            }
+            if (responseAction.type === 'createPage') {
+                return {...base, creating: false, failed: false};
+            }
+
+            return base;
+        });
+        this.messages.push({
+            role: 'assistant',
+            content: response.reply || '',
+            actions,
+            applied: false,
+            discarded: false,
+        });
+        if (response.sessionId) {
+            this.sessionId = response.sessionId;
+        }
+        if (response.sessionTitle) {
+            this.sessionTitle = response.sessionTitle;
+        }
+        this.loading = false;
+        this.streamText = '';
+        this.streamStatus = null;
+    }
+
+    @action pushErrorMessage() {
+        this.messages.push({
+            role: 'error',
+            content: translate('sulu_ai.assistant_error'),
+            actions: [],
+            applied: false,
+            discarded: false,
+        });
+        this.loading = false;
+        this.streamText = '';
+        this.streamStatus = null;
     }
 }
 

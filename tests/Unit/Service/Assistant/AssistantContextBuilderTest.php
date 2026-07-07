@@ -78,6 +78,7 @@ class AssistantContextBuilderTest extends TestCase
         $this->assertStringContainsString('search_content', $prompt);
         $this->assertStringContainsString('propose_navigation', $prompt);
         $this->assertStringContainsString('NOT editing a page', $prompt);
+        $this->assertStringContainsString('retry with broader or related terms', $prompt);
     }
 
     public function testPagePromptContainsNavigationGuidance(): void

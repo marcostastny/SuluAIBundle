@@ -45,11 +45,18 @@ services:
         arguments:
             $adminResources: '%sulu_search.admin_resources%'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\EditableSecurityContexts:
+        arguments:
+            $tokenStorage: '@security.token_storage'
+            $maskConverter: '@sulu_security.mask_converter'
+
     Marcostastny\SuluAIBundle\Service\Assistant\AdminIndexSearcher:
         arguments:
             $engine: '@cmsig_seal.engine.default'
-            $tokenStorage: '@security.token_storage'
-            $maskConverter: '@sulu_security.mask_converter'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\WebsiteIndexSearcher:
+        arguments:
+            $engine: '@cmsig_seal.engine.default'
 
     Marcostastny\SuluAIBundle\Service\Assistant\FormTitleSearcher:
         arguments:

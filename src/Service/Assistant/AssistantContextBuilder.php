@@ -33,7 +33,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false): array
+    public function build(string $template, string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false, bool $publishAvailable = false): array
     {
         $typedFormMetadata = $this->formMetadataProvider->getMetadata('page', $locale, []);
         if (!$typedFormMetadata instanceof TypedFormMetadata) {
@@ -60,7 +60,8 @@ class AssistantContextBuilder
                 $availableTabs,
                 'content',
                 $dataQueryAvailable,
-                $creationAvailable
+                $creationAvailable,
+                $publishAvailable
             ),
             'schema' => $schema,
         ];
@@ -76,7 +77,7 @@ class AssistantContextBuilder
      *
      * @return array{systemPrompt: string, schema: array{fields: array<string, array<string, mixed>>}}
      */
-    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false): array
+    public function buildSeoTab(string $locale, array $formData, AiSetting $setting, array $availableTabs = [], bool $dataQueryAvailable = false, bool $creationAvailable = false, bool $publishAvailable = false): array
     {
         $formMetadata = $this->formMetadataProvider->getMetadata('content_seo', $locale, ['forms' => \array_keys($this->seoForms)]);
         if (!$formMetadata instanceof FormMetadata) {
@@ -94,7 +95,8 @@ class AssistantContextBuilder
                 $availableTabs,
                 'seo',
                 $dataQueryAvailable,
-                $creationAvailable
+                $creationAvailable,
+                $publishAvailable
             ),
             'schema' => $schema,
         ];
@@ -103,12 +105,13 @@ class AssistantContextBuilder
     /**
      * System prompt for requests without an attached page form (global mode).
      */
-    public function buildGlobalPrompt(AiSetting $setting, bool $dataQueryAvailable = false, bool $creationAvailable = false): string
+    public function buildGlobalPrompt(AiSetting $setting, bool $dataQueryAvailable = false, bool $creationAvailable = false, bool $publishAvailable = false): string
     {
         $navigationGuidance = $this->navigationGuidance();
         $multiStepGuidance = $this->multiStepGuidance();
         $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
         $creationGuidance = $this->creationGuidance($creationAvailable);
+        $publishGuidance = $this->publishGuidance($publishAvailable);
 
         $prompt = <<<PROMPT
             You are a content assistant embedded in the Sulu CMS administration.
@@ -121,6 +124,8 @@ class AssistantContextBuilder
             {$dataQueryGuidance}
 
             {$creationGuidance}
+
+            {$publishGuidance}
 
             Rules:
             - Answer in the language the user writes in.
@@ -186,7 +191,7 @@ class AssistantContextBuilder
      * @param mixed $formData
      * @param list<string> $availableTabs
      */
-    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab, bool $dataQueryAvailable = false, bool $creationAvailable = false): string
+    private function systemPrompt(array $schema, mixed $formData, string $intro, AiSetting $setting, array $availableTabs, string $currentTab, bool $dataQueryAvailable = false, bool $creationAvailable = false, bool $publishAvailable = false): string
     {
         $schemaJson = $this->toJson($schema);
         $dataJson = $this->toJson($formData);
@@ -194,6 +199,7 @@ class AssistantContextBuilder
         $multiStepGuidance = $this->multiStepGuidance(\count($availableTabs) >= 2);
         $dataQueryGuidance = $this->dataQueryGuidance($dataQueryAvailable);
         $creationGuidance = $this->creationGuidance($creationAvailable);
+        $publishGuidance = $this->publishGuidance($publishAvailable);
         $tabGuidance = $this->tabGuidance($availableTabs, $currentTab);
 
         $prompt = <<<PROMPT
@@ -227,6 +233,8 @@ class AssistantContextBuilder
             {$dataQueryGuidance}
 
             {$creationGuidance}
+
+            {$publishGuidance}
 
             {$tabGuidance}
 
@@ -288,6 +296,22 @@ class AssistantContextBuilder
             - Use the propose_page_creation tool to propose a new page (title, template, parent, locale). The user reviews it and creates the page with one click - nothing is created automatically, and you must never claim a page exists before the user created it.
             - When the user names a location (e.g. "under Angebote"), call search_content first and pass the result's id and locale as parent_id and parent_locale. Use parent_id "homepage" only for top-level pages.
             - The new page starts empty. Set "resume": true so you are called again on the new page's edit form and can propose its content there.
+            GUIDANCE;
+    }
+
+    private function publishGuidance(bool $available): string
+    {
+        // Only advertise publishing when the tool is registered for this
+        // request, so the model never plans around an unavailable tool.
+        if (!$available) {
+            return '';
+        }
+
+        return <<<'GUIDANCE'
+            Publishing pages:
+            - Use the propose_publish tool to propose publishing or unpublishing a page. The user confirms with one click - nothing is published automatically, and you must never claim a page is live before the user confirmed.
+            - Omit "id" to target the currently open page. For another page, call search_content first and pass the result's id and locale.
+            - Publishing puts the last SAVED state live. When edits were just applied but not saved, tell the user to save before confirming.
             GUIDANCE;
     }
 

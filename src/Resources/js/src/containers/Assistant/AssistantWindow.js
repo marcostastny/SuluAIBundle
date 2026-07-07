@@ -5,12 +5,13 @@ import {observer} from 'mobx-react';
 import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
-import {buildIntroKeys} from '../../utils/intro';
+import {buildIntroKeys, buildSuggestionKeys} from '../../utils/intro';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
 import QueryResultCard from './QueryResultCard';
 import CreationCard from './CreationCard';
+import PublishCard from './PublishCard';
 import styles from './assistantWindow.scss';
 
 // Server tools whose execution is announced via stream status events.
@@ -84,6 +85,10 @@ class AssistantWindow extends React.Component {
         assistantContextStore.sendMessage(text);
     };
 
+    handleStop = () => {
+        assistantContextStore.stopStreaming();
+    };
+
     handleKeyDown = (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -97,8 +102,16 @@ class AssistantWindow extends React.Component {
         return translate((status && STATUS_KEYS[status]) || 'sulu_ai.assistant_thinking');
     }
 
+    handleSuggestion = (key) => {
+        assistantContextStore.sendMessage(translate(key));
+    };
+
     renderIntro() {
         const keys = buildIntroKeys(assistantContextStore.capabilities);
+        const suggestionKeys = buildSuggestionKeys(
+            assistantContextStore.capabilities,
+            Boolean(assistantContextStore.context)
+        );
         const name = assistantContextStore.agentName;
 
         return (
@@ -115,6 +128,20 @@ class AssistantWindow extends React.Component {
                         </ul>
                     }
                 </div>
+                {suggestionKeys.length > 0 &&
+                    <div className={styles.chips}>
+                        {suggestionKeys.map((key) => (
+                            <button
+                                className={styles.chip}
+                                key={key}
+                                onClick={() => this.handleSuggestion(key)}
+                                type="button"
+                            >
+                                {translate(key)}
+                            </button>
+                        ))}
+                    </div>
+                }
             </div>
         );
     }
@@ -159,6 +186,12 @@ class AssistantWindow extends React.Component {
                     .filter((messageAction) => messageAction.type === 'createPage')
                     .map((messageAction, actionIndex) => (
                         <CreationCard action={messageAction} key={'create-' + actionIndex} message={message} />
+                    ))
+                }
+                {(message.actions || [])
+                    .filter((messageAction) => messageAction.type === 'publishPage')
+                    .map((messageAction, actionIndex) => (
+                        <PublishCard action={messageAction} key={'publish-' + actionIndex} message={message} />
                     ))
                 }
             </div>
@@ -267,14 +300,23 @@ class AssistantWindow extends React.Component {
                         rows={2}
                         value={this.inputValue}
                     />
-                    <button
-                        className={styles.sendButton}
-                        disabled={assistantContextStore.loading}
-                        onClick={this.handleSend}
-                        type="button"
-                    >
-                        <Icon name="su-angle-right" />
-                    </button>
+                    {assistantContextStore.loading
+                        ? <button
+                            aria-label={translate('sulu_ai.assistant_stop')}
+                            className={styles.sendButton}
+                            onClick={this.handleStop}
+                            type="button"
+                        >
+                            <Icon name="su-square" />
+                        </button>
+                        : <button
+                            className={styles.sendButton}
+                            onClick={this.handleSend}
+                            type="button"
+                        >
+                            <Icon name="su-angle-right" />
+                        </button>
+                    }
                 </div>
             </div>
         );

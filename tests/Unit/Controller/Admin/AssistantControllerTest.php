@@ -14,6 +14,8 @@ use Marcostastny\SuluAIBundle\Service\Assistant\AssistantAgent;
 use Marcostastny\SuluAIBundle\Service\Assistant\AssistantContextBuilder;
 use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\Creation\PageCreationValidator;
+use Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishGate;
+use Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishValidator;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\DataQueryGate;
 use Marcostastny\SuluAIBundle\Service\Assistant\DataQuery\QueryResultCollector;
 use Marcostastny\SuluAIBundle\Service\Assistant\EditOpValidator;
@@ -35,6 +37,7 @@ class AssistantControllerTest extends TestCase
 {
     private QueryResultCollector $queryResultCollector;
     private PageCreationValidator $pageCreationValidator;
+    private PagePublishValidator $pagePublishValidator;
     private ChatSessionRepository $sessionRepository;
     private SessionTitleGenerator $titleGenerator;
     private TokenStorage $tokenStorage;
@@ -49,7 +52,8 @@ class AssistantControllerTest extends TestCase
         ?SecurityCheckerInterface $securityChecker = null,
         bool $dataQueryAvailable = false,
         bool $creationAvailable = false,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        bool $publishAvailable = false
     ): AssistantController {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($setting);
@@ -62,6 +66,10 @@ class AssistantControllerTest extends TestCase
         $pageCreationGate = $this->createMock(PageCreationGate::class);
         $pageCreationGate->method('isAvailable')->willReturn($creationAvailable);
         $this->pageCreationValidator = $this->createMock(PageCreationValidator::class);
+
+        $pagePublishGate = $this->createMock(PagePublishGate::class);
+        $pagePublishGate->method('isAvailable')->willReturn($publishAvailable);
+        $this->pagePublishValidator = $this->createMock(PagePublishValidator::class);
 
         $this->queryResultCollector = new QueryResultCollector();
         $this->sessionRepository = $this->createMock(ChatSessionRepository::class);
@@ -78,6 +86,8 @@ class AssistantControllerTest extends TestCase
             $this->queryResultCollector,
             $pageCreationGate,
             $this->pageCreationValidator,
+            $pagePublishGate,
+            $this->pagePublishValidator,
             $this->sessionRepository,
             $this->titleGenerator,
             $this->tokenStorage,
@@ -432,6 +442,82 @@ class AssistantControllerTest extends TestCase
         $this->assertNull($capturedValidator);
     }
 
+    public function testPublishValidatorPassedToAgentWhenGateAllows(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $capturedValidator = null;
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(function (...$args) use (&$capturedValidator): array {
+            $capturedValidator = $args[8] ?? null;
+
+            return ['reply' => 'ok', 'actions' => []];
+        });
+
+        $controller = $this->controller($this->enabledSetting(), $contextBuilder, $agent, publishAvailable: true);
+        $this->pagePublishValidator->expects($this->once())
+            ->method('validate')
+            ->with(['mode' => 'publish'], null)
+            ->willReturn(['errors' => ['nope']]);
+
+        $response = $controller->postAction($this->jsonRequest(['messages' => [['role' => 'user', 'content' => 'hi']]]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertInstanceOf(\Closure::class, $capturedValidator);
+        $this->assertSame(['errors' => ['nope']], $capturedValidator(['mode' => 'publish']));
+    }
+
+    public function testPublishValidatorReceivesContextPage(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('build')->willReturn(['systemPrompt' => 'sys', 'schema' => ['fields' => []]]);
+        $capturedValidator = null;
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(function (...$args) use (&$capturedValidator): array {
+            $capturedValidator = $args[8] ?? null;
+
+            return ['reply' => 'ok', 'actions' => []];
+        });
+
+        $controller = $this->controller($this->enabledSetting(), $contextBuilder, $agent, publishAvailable: true);
+        $this->pagePublishValidator->expects($this->once())
+            ->method('validate')
+            ->with($this->anything(), [
+                'id' => 'abc-1',
+                'locale' => 'de',
+                'webspace' => 'kulm',
+                'title' => 'Zimmer & Preise',
+            ])
+            ->willReturn(['errors' => []]);
+
+        $controller->postAction($this->jsonRequest([
+            'context' => ['type' => 'page', 'id' => 'abc-1', 'template' => 'default', 'locale' => 'de', 'webspace' => 'kulm'],
+            'formData' => ['title' => 'Zimmer & Preise'],
+            'messages' => [['role' => 'user', 'content' => 'hi']],
+        ]));
+
+        $this->assertInstanceOf(\Closure::class, $capturedValidator);
+        $capturedValidator([]);
+    }
+
+    public function testPublishDisabledWhenGateDenies(): void
+    {
+        $contextBuilder = $this->createMock(AssistantContextBuilder::class);
+        $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
+        $capturedValidator = 'unset';
+        $agent = $this->createMock(AssistantAgent::class);
+        $agent->method('run')->willReturnCallback(function (...$args) use (&$capturedValidator): array {
+            $capturedValidator = $args[8] ?? null;
+
+            return ['reply' => 'ok', 'actions' => []];
+        });
+
+        $this->controller($this->enabledSetting(), $contextBuilder, $agent)
+            ->postAction($this->jsonRequest(['messages' => [['role' => 'user', 'content' => 'hi']]]));
+
+        $this->assertNull($capturedValidator);
+    }
+
     public function testUnknownSessionIdReturns404BeforeAgentRuns(): void
     {
         $agent = $this->createMock(AssistantAgent::class);
@@ -582,7 +668,7 @@ class AssistantControllerTest extends TestCase
         $contextBuilder->method('buildGlobalPrompt')->willReturn('global prompt');
         $agent = $this->createMock(AssistantAgent::class);
         $agent->method('run')->willReturnCallback(
-            function ($apiUrl, $apiKey, $model, $systemPrompt, $messages, $validateOps, $tabs, $validateCreation, $onEvent): array {
+            function ($apiUrl, $apiKey, $model, $systemPrompt, $messages, $validateOps, $tabs, $validateCreation, $validatePublish, $onEvent): array {
                 $onEvent(['type' => 'status', 'tool' => 'search_content']);
                 $onEvent(['type' => 'delta', 'text' => 'Hal']);
                 $onEvent(['type' => 'delta', 'text' => 'lo']);

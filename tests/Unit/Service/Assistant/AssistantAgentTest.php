@@ -542,6 +542,110 @@ class AssistantAgentTest extends TestCase
         $this->assertContains('propose_page_creation', $names);
     }
 
+    public function testProposePublishReturnsActionWhenValidatorAccepts(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_publish', [
+                'mode' => 'publish',
+                'message' => 'Seite veröffentlichen?',
+                'resume' => false,
+            ]),
+        ]);
+
+        $validatePublish = static fn (array $arguments): array => ['action' => [
+            'type' => 'publishPage',
+            'mode' => $arguments['mode'],
+            'id' => 'ctx-1',
+            'title' => 'Zimmer & Preise',
+            'locale' => 'de',
+            'webspace' => 'kulm',
+            'message' => $arguments['message'],
+            'resume' => false,
+        ]];
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'veröffentlichen']],
+            null,
+            null,
+            null,
+            $validatePublish
+        );
+
+        $this->assertSame('Seite veröffentlichen?', $result['reply']);
+        $this->assertCount(1, $result['actions']);
+        $this->assertSame('publishPage', $result['actions'][0]['type']);
+        $this->assertSame('publish', $result['actions'][0]['mode']);
+    }
+
+    public function testProposePublishRetriesOnceThenGivesUp(): void
+    {
+        $arguments = ['mode' => 'delete', 'message' => 'x'];
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_publish', $arguments),
+            $this->toolCallResponse('propose_publish', $arguments, 'call_2'),
+        ]);
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'veröffentlichen']],
+            null,
+            null,
+            null,
+            static fn (): array => ['errors' => ['mode must be "publish" or "unpublish".']]
+        );
+
+        $this->assertSame(2, $client->getRequestsCount());
+        $this->assertSame([], $result['actions']);
+        $this->assertStringContainsString('could not prepare the publish action', \strtolower($result['reply']));
+    }
+
+    public function testPublishToolOmittedWithoutValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->runAgent($this->agent($client));
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertNotContains('propose_publish', $names);
+    }
+
+    public function testPublishToolOfferedWithValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'hi']],
+            null,
+            null,
+            null,
+            static fn (): array => ['errors' => []]
+        );
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertContains('propose_publish', $names);
+    }
+
     public function testApiErrorSurfacesAsRuntimeException(): void
     {
         $body = (string) \json_encode(['error' => ['message' => 'model overloaded']]);
@@ -590,7 +694,7 @@ class AssistantAgentTest extends TestCase
 
         $result = $this->agent($client)->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
             ['role' => 'user', 'content' => 'Hi'],
-        ], null, null, null, function (array $event) use (&$events): void {
+        ], null, null, null, null, function (array $event) use (&$events): void {
             $events[] = $event;
         });
 
@@ -611,7 +715,7 @@ class AssistantAgentTest extends TestCase
         $result = $this->agent($client, $this->collectingTool())
             ->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
                 ['role' => 'user', 'content' => 'Hi'],
-            ], null, null, null, function (array $event) use (&$events): void {
+            ], null, null, null, null, function (array $event) use (&$events): void {
                 $events[] = $event;
             });
 
@@ -637,7 +741,7 @@ class AssistantAgentTest extends TestCase
         $this->agent($client, $this->collectingTool())
             ->run('https://api.test/v1', 'key', 'gpt-test', 'system', [
                 ['role' => 'user', 'content' => 'Hi'],
-            ], null, null, null, function (array $event) use (&$events): void {
+            ], null, null, null, null, function (array $event) use (&$events): void {
                 $events[] = $event;
             });
 

@@ -10,6 +10,8 @@ import Launcher from './containers/Launcher';
 import assistantContextStore from './stores/assistantContextStore';
 import routerStore from './stores/routerStore';
 import imageGeneratorStore from './stores/imageGeneratorStore';
+import mediaMetaStore from './stores/mediaMetaStore';
+import installMediaOverviewIntegration from './integrations/mediaOverview';
 import {PasswordField} from './fields';
 
 // The admin router is created privately inside startAdmin(), which calls
@@ -30,6 +32,10 @@ if (Router && typeof Router.prototype.addUpdateAttributesHook === 'function') {
     };
 }
 
+// Media overview toolbar integration (AI meta buttons) - guarded wrappers,
+// installed before the initializer registers any views.
+installMediaOverviewIntegration();
+
 initializer.addUpdateConfigHook('sulu_ai_bundle', (config) => {
     assistantContextStore.setAvailable(Boolean(config && config.assistant && config.assistant.available));
     assistantContextStore.setAgentName(config && config.assistant && config.assistant.agentName);
@@ -38,6 +44,7 @@ initializer.addUpdateConfigHook('sulu_ai_bundle', (config) => {
         images: Boolean(config && config.imageGeneration && config.imageGeneration.available),
     });
     imageGeneratorStore.setConfig(config && config.imageGeneration);
+    mediaMetaStore.setAvailable(Boolean(config && config.mediaMeta && config.mediaMeta.available));
 });
 
 initializer.addUpdateConfigHook('sulu_admin', (config, initialized) => {

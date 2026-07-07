@@ -111,5 +111,18 @@
     "sulu_ai.assistant_intro_navigation": "Seiten, Artikel, Snippets und Formulare finden und öffnen.",
     "sulu_ai.assistant_intro_creation": "Neue Seiten als Entwurf anlegen.",
     "sulu_ai.assistant_intro_data": "Fragen zu gespeicherten Daten beantworten, z. B. Formulareinsendungen.",
-    "sulu_ai.assistant_intro_images": "Bilder in der Mediathek generieren."
+    "sulu_ai.assistant_intro_images": "Bilder in der Mediathek generieren.",
+    "sulu_ai.media_meta_generate_missing": "Fehlende Metadaten generieren (KI)",
+    "sulu_ai.media_meta_generate_selected": "Metadaten für Auswahl generieren (KI)",
+    "sulu_ai.media_meta_title": "KI-Medien-Metadaten",
+    "sulu_ai.media_meta_confirm_missing": "Titel und Beschreibung für {count} Bilder mit fehlenden Metadaten generieren? Bestehende Werte bleiben erhalten.",
+    "sulu_ai.media_meta_confirm_selected": "Titel und Beschreibung für {count} ausgewählte Bilder generieren? Bestehende Werte werden ÜBERSCHRIEBEN.",
+    "sulu_ai.media_meta_nothing_missing": "Alle Bilder haben bereits Metadaten.",
+    "sulu_ai.media_meta_start": "Generieren",
+    "sulu_ai.media_meta_running": "{done} von {total} Bildern verarbeitet…",
+    "sulu_ai.media_meta_cancel": "Abbrechen",
+    "sulu_ai.media_meta_summary": "{processed} generiert, {skipped} übersprungen, {failed} fehlgeschlagen.",
+    "sulu_ai.media_meta_aborted": "Der Lauf wurde gestoppt, weil Anfragen wiederholt fehlschlugen. Bereits generierte Metadaten sind gespeichert.",
+    "sulu_ai.media_meta_cancelled": "Abgebrochen. Bereits generierte Metadaten sind gespeichert.",
+    "sulu_ai.media_meta_failed_items": "Fehlgeschlagene Bilder"
 }

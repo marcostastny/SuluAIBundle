@@ -111,5 +111,18 @@
     "sulu_ai.assistant_intro_navigation": "Find and open pages, articles, snippets and forms.",
     "sulu_ai.assistant_intro_creation": "Create new pages as drafts.",
     "sulu_ai.assistant_intro_data": "Answer questions about stored data, e.g. form submissions.",
-    "sulu_ai.assistant_intro_images": "Generate images in the media library."
+    "sulu_ai.assistant_intro_images": "Generate images in the media library.",
+    "sulu_ai.media_meta_generate_missing": "Generate missing meta (AI)",
+    "sulu_ai.media_meta_generate_selected": "Generate meta for selection (AI)",
+    "sulu_ai.media_meta_title": "AI media meta",
+    "sulu_ai.media_meta_confirm_missing": "Generate title and description for {count} images with missing meta? Existing values are kept.",
+    "sulu_ai.media_meta_confirm_selected": "Generate title and description for {count} selected images? Existing values will be OVERWRITTEN.",
+    "sulu_ai.media_meta_nothing_missing": "All images already have meta data.",
+    "sulu_ai.media_meta_start": "Generate",
+    "sulu_ai.media_meta_running": "{done} of {total} images processed…",
+    "sulu_ai.media_meta_cancel": "Cancel",
+    "sulu_ai.media_meta_summary": "{processed} generated, {skipped} skipped, {failed} failed.",
+    "sulu_ai.media_meta_aborted": "The run was stopped because requests kept failing. Already generated meta data is saved.",
+    "sulu_ai.media_meta_cancelled": "Cancelled. Already generated meta data is saved.",
+    "sulu_ai.media_meta_failed_items": "Failed images"
 }

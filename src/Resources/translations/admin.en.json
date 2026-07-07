@@ -101,5 +101,8 @@
     "sulu_ai.assistant_create_failed": "Creating the page failed.",
     "sulu_ai.assistant_parent": "Parent",
     "sulu_ai.assistant_parent_homepage": "Top level",
-    "sulu_ai.assistant_expired": "This proposal is from an earlier session and can no longer be applied."
+    "sulu_ai.assistant_expired": "This proposal is from an earlier session and can no longer be applied.",
+    "sulu_ai.assistant_sessions": "Chat history",
+    "sulu_ai.assistant_new_session": "New chat",
+    "sulu_ai.assistant_no_sessions": "No previous chats."
 }

@@ -101,5 +101,8 @@
     "sulu_ai.assistant_create_failed": "Die Seite konnte nicht erstellt werden.",
     "sulu_ai.assistant_parent": "Übergeordnete Seite",
     "sulu_ai.assistant_parent_homepage": "Oberste Ebene",
-    "sulu_ai.assistant_expired": "Dieser Vorschlag stammt aus einer früheren Sitzung und kann nicht mehr angewendet werden."
+    "sulu_ai.assistant_expired": "Dieser Vorschlag stammt aus einer früheren Sitzung und kann nicht mehr angewendet werden.",
+    "sulu_ai.assistant_sessions": "Chat-Verlauf",
+    "sulu_ai.assistant_new_session": "Neuer Chat",
+    "sulu_ai.assistant_no_sessions": "Keine früheren Chats."
 }

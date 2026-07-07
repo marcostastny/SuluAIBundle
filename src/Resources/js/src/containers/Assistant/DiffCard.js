@@ -144,6 +144,18 @@ class DiffCard extends React.Component {
 
     render() {
         const {action: proposeAction, message} = this.props;
+
+        if (proposeAction.restored) {
+            // Restored from a persisted session: the baseline and form store
+            // are gone, so the diff can neither render nor apply.
+            return (
+                <div className={styles.card}>
+                    {!!proposeAction.summary && <div className={styles.summary}>{proposeAction.summary}</div>}
+                    <div className={styles.status}>{translate('sulu_ai.assistant_expired')}</div>
+                </div>
+            );
+        }
+
         const context = assistantContextStore.context;
         const data = context ? toJS(context.resourceFormStore.data) : {};
 

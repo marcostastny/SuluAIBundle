@@ -92,6 +92,17 @@ class TabSwitchCard extends React.Component {
         const {action: switchAction} = this.props;
         const tabLabel = translate(TAB_LABELS[switchAction.tab] || TAB_LABELS.content);
 
+        if (switchAction.restored) {
+            // Restored from a persisted session: the form context this switch
+            // belonged to is gone, so render it inert.
+            return (
+                <div className={styles.card}>
+                    {!!switchAction.message && <div className={styles.summary}>{switchAction.message}</div>}
+                    <div className={styles.status}>{translate('sulu_ai.assistant_expired')}</div>
+                </div>
+            );
+        }
+
         return (
             <div className={styles.card}>
                 {!!switchAction.message && <div className={styles.summary}>{switchAction.message}</div>}

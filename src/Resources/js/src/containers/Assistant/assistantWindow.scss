@@ -27,6 +27,95 @@
     font-weight: bold;
 }
 
+.title-block {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.subtitle {
+    font-size: 11px;
+    color: #aaa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sessions-overlay {
+    position: absolute;
+    top: 46px;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    max-height: 320px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    overflow-y: auto;
+}
+
+.new-session-button {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fff;
+    color: #52b6ca;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sessions-empty {
+    padding: 12px 16px;
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
+}
+
+.session-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+
+    &:hover {
+        background: #f5f5f5;
+    }
+}
+
+.session-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.session-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.session-delete-button {
+    border: none;
+    background: none;
+    color: #999;
+    cursor: pointer;
+
+    &:hover {
+        color: #b00;
+    }
+}
+
 .close-button {
     border: none;
     background: none;

@@ -9,8 +9,8 @@ use Marcostastny\SuluAIBundle\Service\OpenAiClient;
 /**
  * Runs the OpenAI-compatible function-calling loop for the assistant.
  * Server tools from the ToolRegistry are executed in-loop; propose_edits,
- * propose_navigation and switch_tab are terminal and returned to the client
- * as actions.
+ * propose_navigation, switch_tab and propose_page_creation are terminal and
+ * returned to the client as actions.
  */
 class AssistantAgent
 {
@@ -31,6 +31,9 @@ class AssistantAgent
      *                                                                      valid; null disables propose_edits
      * @param array{current: string, available: list<string>}|null $tabs edit-form tabs; enables switch_tab
      *                                                                   when another tab is available
+     * @param (callable(array<string, mixed>): array)|null $validateCreation returns ['action' => …] or
+     *                                                                       ['errors' => …]; null disables
+     *                                                                       propose_page_creation
      *
      * @return array{reply: string, actions: list<array<string, mixed>>}
      */
@@ -41,7 +44,8 @@ class AssistantAgent
         string $systemPrompt,
         array $messages,
         ?callable $validateOps,
-        ?array $tabs = null
+        ?array $tabs = null,
+        ?callable $validateCreation = null
     ): array {
         $this->targetCollector->reset();
 
@@ -49,6 +53,9 @@ class AssistantAgent
         $tools = [$this->proposeNavigationDefinition(), ...$this->toolRegistry->getDefinitions()];
         if (null !== $validateOps) {
             $tools = [$this->proposeEditsDefinition(), ...$tools];
+        }
+        if (null !== $validateCreation) {
+            $tools[] = $this->proposePageCreationDefinition();
         }
         $switchableTabs = null !== $tabs
             ? \array_values(\array_diff($tabs['available'], [$tabs['current']]))
@@ -59,6 +66,7 @@ class AssistantAgent
         $proposalRetried = false;
         $navigationRetried = false;
         $switchTabRetried = false;
+        $creationRetried = false;
 
         for ($iteration = 0; $iteration < self::MAX_ITERATIONS; ++$iteration) {
             $message = $this->requestCompletion($apiUrl, $apiKey, $model, $conversation, $tools);
@@ -212,6 +220,38 @@ class AssistantAgent
                     continue;
                 }
 
+                if ('propose_page_creation' === $name && null !== $validateCreation) {
+                    $result = $validateCreation($arguments);
+
+                    if (isset($result['action'])) {
+                        $reply = \trim((string) ($message['content'] ?? ''));
+
+                        return [
+                            'reply' => '' !== $reply ? $reply : (string) ($arguments['message'] ?? ''),
+                            'actions' => [$result['action']],
+                        ];
+                    }
+
+                    if ($creationRetried) {
+                        return [
+                            'reply' => 'I could not prepare the page creation. Please try rephrasing your request.',
+                            'actions' => [],
+                        ];
+                    }
+
+                    $creationRetried = true;
+                    $conversation[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => (string) ($toolCall['id'] ?? ''),
+                        'content' => (string) \json_encode([
+                            'errors' => $result['errors'] ?? [],
+                            'instruction' => 'Fix the arguments and call propose_page_creation again. Use search_content to find a valid parent page when needed.',
+                        ]),
+                    ];
+
+                    continue;
+                }
+
                 $tool = $this->toolRegistry->get($name);
                 if (null === $tool) {
                     $result = ['error' => \sprintf('Unknown tool "%s".', $name)];
@@ -304,6 +344,42 @@ class AssistantAgent
                         'resume' => $this->resumeParameter(),
                     ],
                     'required' => ['message', 'targets'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proposePageCreationDefinition(): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => 'propose_page_creation',
+                'description' => 'Propose creating a new page as a draft. The user reviews title, template, parent and URL and creates the page with one click - nothing is created automatically. The parent must be "homepage" or a pages result from search_content in this conversation turn.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'message' => [
+                            'type' => 'string',
+                            'description' => 'One sentence describing the page to create, in the user\'s language.',
+                        ],
+                        'title' => ['type' => 'string', 'description' => 'The page title.'],
+                        'template' => ['type' => 'string', 'description' => 'The page template key, e.g. "default".'],
+                        'parent_id' => [
+                            'type' => 'string',
+                            'description' => '"homepage" for a top-level page, or the id of a pages result from search_content.',
+                        ],
+                        'parent_locale' => [
+                            'type' => 'string',
+                            'description' => 'The locale of the parent exactly as returned by search_content. Omit when parent_id is "homepage".',
+                        ],
+                        'locale' => ['type' => 'string', 'description' => 'The locale to create the page in, e.g. "de".'],
+                        'resume' => $this->resumeParameter(),
+                    ],
+                    'required' => ['message', 'title', 'template', 'parent_id', 'locale'],
                 ],
             ],
         ];

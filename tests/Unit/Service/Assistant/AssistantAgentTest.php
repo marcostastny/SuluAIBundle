@@ -435,6 +435,113 @@ class AssistantAgentTest extends TestCase
         $this->assertSame([], $result['actions']);
     }
 
+    public function testProposePageCreationReturnsActionWhenValidatorAccepts(): void
+    {
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_page_creation', [
+                'message' => 'Seite anlegen?',
+                'title' => 'Wellness Weekend',
+                'template' => 'default',
+                'parent_id' => 'homepage',
+                'locale' => 'de',
+                'resume' => true,
+            ]),
+        ]);
+
+        $validateCreation = static fn (array $arguments): array => ['action' => [
+            'type' => 'createPage',
+            'message' => $arguments['message'],
+            'title' => $arguments['title'],
+            'template' => 'default',
+            'templateTitle' => 'Standard',
+            'parentId' => 'homepage',
+            'parentTitle' => '',
+            'webspace' => 'kulm',
+            'locale' => 'de',
+            'url' => '/wellness-weekend',
+            'resume' => true,
+        ]];
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'neue Seite']],
+            null,
+            null,
+            $validateCreation
+        );
+
+        $this->assertSame('Seite anlegen?', $result['reply']);
+        $this->assertCount(1, $result['actions']);
+        $this->assertSame('createPage', $result['actions'][0]['type']);
+        $this->assertSame('/wellness-weekend', $result['actions'][0]['url']);
+    }
+
+    public function testProposePageCreationRetriesOnceThenGivesUp(): void
+    {
+        $arguments = ['title' => '', 'template' => 'x', 'parent_id' => 'homepage', 'locale' => 'de', 'message' => 'x'];
+        $client = new MockHttpClient([
+            $this->toolCallResponse('propose_page_creation', $arguments),
+            $this->toolCallResponse('propose_page_creation', $arguments, 'call_2'),
+        ]);
+
+        $result = $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'neue Seite']],
+            null,
+            null,
+            static fn (): array => ['errors' => ['title must not be empty.']]
+        );
+
+        $this->assertSame(2, $client->getRequestsCount());
+        $this->assertSame([], $result['actions']);
+        $this->assertStringContainsString('could not', \strtolower($result['reply']));
+    }
+
+    public function testCreationToolOmittedWithoutValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->runAgent($this->agent($client));
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertNotContains('propose_page_creation', $names);
+    }
+
+    public function testCreationToolOfferedWithValidator(): void
+    {
+        $captured = null;
+        $client = new MockHttpClient(function ($method, $url, $options) use (&$captured) {
+            $captured = \json_decode($options['body'], true);
+
+            return $this->textResponse('ok');
+        });
+
+        $this->agent($client)->run(
+            'https://api.test/v1',
+            'key',
+            'gpt-test',
+            'system',
+            [['role' => 'user', 'content' => 'hi']],
+            null,
+            null,
+            static fn (): array => ['errors' => []]
+        );
+
+        $names = \array_map(static fn (array $tool): string => $tool['function']['name'], $captured['tools']);
+        $this->assertContains('propose_page_creation', $names);
+    }
+
     public function testApiErrorSurfacesAsRuntimeException(): void
     {
         $body = (string) \json_encode(['error' => ['message' => 'model overloaded']]);

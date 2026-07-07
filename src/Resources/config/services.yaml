@@ -99,6 +99,13 @@ services:
             $formMetadataProvider: '@sulu_admin.form_metadata_provider'
             $resourceLocatorGenerator: '@sulu_route.resource_locator_generator'
 
+    Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishGate:
+        arguments:
+            $securityChecker: '@sulu_security.security_checker'
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+
+    Marcostastny\SuluAIBundle\Service\Assistant\Publish\PagePublishValidator: ~
+
     Marcostastny\SuluAIBundle\Repository\ChatSessionRepository:
         arguments:
             $entityManager: '@doctrine.orm.entity_manager'

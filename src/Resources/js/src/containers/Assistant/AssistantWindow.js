@@ -5,6 +5,7 @@ import {observer} from 'mobx-react';
 import {Icon} from 'sulu-admin-bundle/components';
 import {translate} from 'sulu-admin-bundle/utils';
 import assistantContextStore from '../../stores/assistantContextStore';
+import {buildIntroKeys} from '../../utils/intro';
 import DiffCard from './DiffCard';
 import NavigationCard from './NavigationCard';
 import TabSwitchCard from './TabSwitchCard';
@@ -78,6 +79,28 @@ class AssistantWindow extends React.Component {
             this.handleSend();
         }
     };
+
+    renderIntro() {
+        const keys = buildIntroKeys(assistantContextStore.capabilities);
+        const name = assistantContextStore.agentName;
+
+        return (
+            <div className={styles.messageRow}>
+                <div className={styles.assistantMessage}>
+                    <div>
+                        {name
+                            ? translate('sulu_ai.assistant_intro_greeting_named', {name})
+                            : translate('sulu_ai.assistant_intro_greeting')}
+                    </div>
+                    {keys.length > 0 &&
+                        <ul className={styles.introList}>
+                            {keys.map((key) => <li key={key}>{translate(key)}</li>)}
+                        </ul>
+                    }
+                </div>
+            </div>
+        );
+    }
 
     renderMessage = (message, index) => {
         if (message.hidden) {
@@ -203,6 +226,10 @@ class AssistantWindow extends React.Component {
                     </div>
                 }
                 <div className={styles.messages}>
+                    {assistantContextStore.messages.filter((message) => !message.hidden).length === 0 &&
+                        !assistantContextStore.loading &&
+                        this.renderIntro()
+                    }
                     {assistantContextStore.messages.map(this.renderMessage)}
                     {assistantContextStore.loading &&
                         <div className={styles.assistantMessage}>{translate('sulu_ai.assistant_thinking')}</div>

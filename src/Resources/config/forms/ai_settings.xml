@@ -25,7 +25,13 @@
                 <info_text>sulu_ai.model_info</info_text>
             </meta>
         </property>
-        <property name="apiKey" type="password" colspan="12">
+        <property name="mediaMetaModel" type="text_line" colspan="6">
+            <meta>
+                <title>sulu_ai.media_meta_model</title>
+                <info_text>sulu_ai.media_meta_model_info</info_text>
+            </meta>
+        </property>
+        <property name="apiKey" type="password" colspan="6">
             <meta>
                 <title>sulu_ai.api_key</title>
             </meta>

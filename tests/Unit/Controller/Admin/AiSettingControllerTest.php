@@ -248,4 +248,51 @@ class AiSettingControllerTest extends TestCase
         $this->assertSame('gpt-image-2', $setting->getImageModels()[0]['modelId']);
         $this->assertSame('Brand look', $setting->getImageStylePrompt());
     }
+
+    public function testPutStoresMediaMetaModel(): void
+    {
+        $setting = new AiSetting();
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'mediaMetaModel' => '  gemini/gemini-3.1-flash  ',
+        ]));
+
+        $this->assertSame('gemini/gemini-3.1-flash', $setting->getMediaMetaModel());
+    }
+
+    public function testPutStoresBlankMediaMetaModelAsNull(): void
+    {
+        $setting = new AiSetting();
+        $setting->setMediaMetaModel('gemini/gemini-3.1-flash');
+
+        $controller = $this->settingController($setting);
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+            'mediaMetaModel' => '  ',
+        ]));
+
+        $this->assertNull($setting->getMediaMetaModel());
+    }
+
+    public function testPutWithoutMediaMetaModelKeyKeepsExistingValue(): void
+    {
+        $setting = new AiSetting();
+        $setting->setMediaMetaModel('gemini/gemini-3.1-flash');
+
+        $controller = $this->settingController($setting);
+        // An old-shape payload without the key must not wipe the model.
+        $controller->putAction(new Request(request: [
+            'apiUrl' => 'https://api.test/v1',
+            'model' => 'gpt-test',
+            'enabled' => true,
+        ]));
+
+        $this->assertSame('gemini/gemini-3.1-flash', $setting->getMediaMetaModel());
+    }
 }

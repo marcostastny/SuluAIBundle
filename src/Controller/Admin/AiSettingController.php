@@ -49,6 +49,13 @@ class AiSettingController extends AbstractRestController implements SecuredContr
             $setting->setApiKey((string) $data['apiKey']);
         }
 
+        // Only touch when the payload carries the field, so an old-shape PUT
+        // (stale admin bundle) can't wipe it. Empty means "use the chat model".
+        if (\array_key_exists('mediaMetaModel', $data)) {
+            $mediaMetaModel = \trim((string) $data['mediaMetaModel']);
+            $setting->setMediaMetaModel('' === $mediaMetaModel ? null : $mediaMetaModel);
+        }
+
         // Only touch the image fields when the payload carries them, so an
         // old-shape PUT (stale admin bundle, or an external script) can't wipe
         // the saved models and style prompt.

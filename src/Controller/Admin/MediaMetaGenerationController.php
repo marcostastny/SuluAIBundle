@@ -126,7 +126,7 @@ class MediaMetaGenerationController
                 $generated = $this->generator->generate(
                     (string) $setting->getApiUrl(),
                     (string) $setting->getApiKey(),
-                    (string) $setting->getModel(),
+                    $setting->getEffectiveMediaMetaModel(),
                     $fileVersion,
                     $locales,
                     $this->writer->existingMeta($media, $locales)

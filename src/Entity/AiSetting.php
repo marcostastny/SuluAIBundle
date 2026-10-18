@@ -87,6 +87,19 @@ class AiSetting implements AuditableInterface
     #[Serializer\Expose]
     private ?string $dataQueryTables = null;
 
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Serializer\Expose]
+    private ?bool $llmsTxtEnabled = false;
+
+    /**
+     * Per-locale llms.txt intro texts, stored in the block shape of the settings form.
+     *
+     * @var array<int, array{type: string, locale: string, summary: ?string, notes: ?string}>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Serializer\Expose]
+    private ?array $llmsTxtTexts = null;
+
     public function __construct()
     {
         // Sulu 3's AuditableTrait timestamps are non-nullable; Doctrine hydrates
@@ -272,5 +285,49 @@ class AiSetting implements AuditableInterface
         $this->dataQueryTables = $dataQueryTables;
 
         return $this;
+    }
+
+    public function isLlmsTxtEnabled(): bool
+    {
+        return (bool) $this->llmsTxtEnabled;
+    }
+
+    public function setLlmsTxtEnabled(?bool $llmsTxtEnabled): self
+    {
+        $this->llmsTxtEnabled = $llmsTxtEnabled;
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, array{type: string, locale: string, summary: ?string, notes: ?string}>
+     */
+    public function getLlmsTxtTexts(): array
+    {
+        return $this->llmsTxtTexts ?? [];
+    }
+
+    /**
+     * @param array<int, array{type: string, locale: string, summary: ?string, notes: ?string}>|null $llmsTxtTexts
+     */
+    public function setLlmsTxtTexts(?array $llmsTxtTexts): self
+    {
+        $this->llmsTxtTexts = $llmsTxtTexts;
+
+        return $this;
+    }
+
+    /**
+     * @return array{summary: ?string, notes: ?string}|null
+     */
+    public function getLlmsTxtText(string $locale): ?array
+    {
+        foreach ($this->getLlmsTxtTexts() as $text) {
+            if (($text['locale'] ?? null) === $locale) {
+                return ['summary' => $text['summary'] ?? null, 'notes' => $text['notes'] ?? null];
+            }
+        }
+
+        return null;
     }
 }

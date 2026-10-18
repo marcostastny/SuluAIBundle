@@ -189,3 +189,23 @@ services:
         tags:
             - { name: sulu.context, context: admin }
             - { name: controller.service_arguments }
+
+    Marcostastny\SuluAIBundle\Service\LlmsTxt\LlmsTxtRenderer: ~
+
+    Marcostastny\SuluAIBundle\Service\LlmsTxt\LlmsTxtPageProvider:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+            $accessControlQueryEnhancer: '@sulu_security.access_control_query_enhancer'
+            $security: '@?security.helper'
+            $permissions: '%sulu_security.permissions%'
+
+    Marcostastny\SuluAIBundle\Controller\Website\LlmsTxtController:
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'
+            $requestAnalyzer: '@sulu_core.webspace.request_analyzer'
+            $webspaceManager: '@sulu_core.webspace.webspace_manager'
+            $environment: '%kernel.environment%'
+        public: true
+        tags:
+            - { name: sulu.context, context: website }

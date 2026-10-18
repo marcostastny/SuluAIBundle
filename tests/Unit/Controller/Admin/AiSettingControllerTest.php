@@ -295,4 +295,37 @@ class AiSettingControllerTest extends TestCase
 
         $this->assertSame('gemini/gemini-3.1-flash', $setting->getMediaMetaModel());
     }
+
+    public function testPutStoresLlmsTxtSettings(): void
+    {
+        $setting = new AiSetting();
+
+        $this->settingController($setting)->putAction(new Request(request: [
+            'llmsTxtEnabled' => true,
+            'llmsTxtTexts' => [
+                ['type' => 'locale', 'locale' => ' DE ', 'summary' => ' Hotel in Triesenberg. ', 'notes' => ''],
+                ['type' => 'locale', 'locale' => '', 'summary' => 'no locale, skipped'],
+            ],
+        ]));
+
+        $this->assertTrue($setting->isLlmsTxtEnabled());
+        $this->assertSame(
+            [['type' => 'locale', 'locale' => 'de', 'summary' => 'Hotel in Triesenberg.', 'notes' => null]],
+            $setting->getLlmsTxtTexts()
+        );
+        $this->assertSame(['summary' => 'Hotel in Triesenberg.', 'notes' => null], $setting->getLlmsTxtText('de'));
+        $this->assertNull($setting->getLlmsTxtText('en'));
+    }
+
+    public function testPutWithoutLlmsTxtFieldsKeepsThem(): void
+    {
+        $setting = new AiSetting();
+        $setting->setLlmsTxtEnabled(true);
+        $setting->setLlmsTxtTexts([['type' => 'locale', 'locale' => 'de', 'summary' => 'Kept', 'notes' => null]]);
+
+        $this->settingController($setting)->putAction(new Request(request: ['apiUrl' => 'https://api.test/v1']));
+
+        $this->assertTrue($setting->isLlmsTxtEnabled());
+        $this->assertSame('Kept', $setting->getLlmsTxtText('de')['summary']);
+    }
 }

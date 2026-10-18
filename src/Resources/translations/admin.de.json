@@ -142,5 +142,15 @@
     "sulu_ai.assistant_unpublish": "Zurückziehen",
     "sulu_ai.assistant_published": "Veröffentlicht.",
     "sulu_ai.assistant_unpublished": "Zurückgezogen.",
-    "sulu_ai.assistant_publish_failed": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen."
+    "sulu_ai.assistant_publish_failed": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen.",
+    "sulu_ai.llms_txt_enabled": "llms.txt ausliefern",
+    "sulu_ai.llms_txt_enabled_info": "Veröffentlicht /llms.txt (Standardsprache) und /{sprache}/llms.txt mit den veröffentlichten Seiten für KI-Assistenten und Crawler. Seiten, die in der Sitemap ausgeblendet oder auf noindex gesetzt sind, fehlen.",
+    "sulu_ai.llms_txt_texts": "llms.txt-Texte",
+    "sulu_ai.llms_txt_texts_info": "Ein Eintrag pro Sprache. Ohne Eintrag dient die SEO-Beschreibung der Startseite als Zusammenfassung.",
+    "sulu_ai.llms_txt_text": "Sprache",
+    "sulu_ai.llms_txt_locale": "Sprachcode (z. B. de)",
+    "sulu_ai.llms_txt_summary": "Zusammenfassung",
+    "sulu_ai.llms_txt_summary_info": "Ein bis zwei Sätze zur Website, erscheinen als Zitat oben.",
+    "sulu_ai.llms_txt_notes": "Zusätzliche Hinweise",
+    "sulu_ai.llms_txt_notes_info": "Optionales Markdown unter der Zusammenfassung, z. B. Öffnungszeiten, Kontakt oder worum es auf der Website geht."
 }

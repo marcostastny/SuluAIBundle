@@ -104,6 +104,29 @@ class AiSettingController extends AbstractRestController implements SecuredContr
             $setting->setDataQueryTables('' === $dataQueryTables ? null : $dataQueryTables);
         }
 
+        if (\array_key_exists('llmsTxtEnabled', $data)) {
+            $setting->setLlmsTxtEnabled((bool) $data['llmsTxtEnabled']);
+        }
+        if (\array_key_exists('llmsTxtTexts', $data)) {
+            $texts = [];
+            foreach ((array) $data['llmsTxtTexts'] as $text) {
+                $locale = \is_array($text) ? \strtolower(\trim((string) ($text['locale'] ?? ''))) : '';
+                if ('' === $locale) {
+                    continue;
+                }
+                $summary = \trim((string) ($text['summary'] ?? ''));
+                $notes = \trim((string) ($text['notes'] ?? ''));
+                $texts[] = [
+                    // Block items need their "type" to render again in the settings form.
+                    'type' => 'locale',
+                    'locale' => $locale,
+                    'summary' => '' === $summary ? null : $summary,
+                    'notes' => '' === $notes ? null : $notes,
+                ];
+            }
+            $setting->setLlmsTxtTexts($texts);
+        }
+
         $this->entityManager->flush();
 
         return $this->handleView($this->view($setting));

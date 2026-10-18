@@ -1,0 +1,5 @@
+# Import with "type: portal" in the host app: /{localization}/llms.txt.
+sulu_ai.llms_txt:
+    path: /llms.txt
+    methods: GET
+    controller: Marcostastny\SuluAIBundle\Controller\Website\LlmsTxtController::indexAction

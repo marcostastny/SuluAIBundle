@@ -1,0 +1,6 @@
+# Import without a type in the host app, before routing_website.yaml: /llms.txt in
+# the webspace default locale (a portal route would redirect to /{default}/llms.txt).
+sulu_ai.llms_txt_root:
+    path: /llms.txt
+    methods: GET
+    controller: Marcostastny\SuluAIBundle\Controller\Website\LlmsTxtController::indexAction

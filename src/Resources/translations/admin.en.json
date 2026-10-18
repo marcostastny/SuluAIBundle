@@ -142,5 +142,15 @@
     "sulu_ai.assistant_unpublish": "Unpublish",
     "sulu_ai.assistant_published": "Published.",
     "sulu_ai.assistant_unpublished": "Unpublished.",
-    "sulu_ai.assistant_publish_failed": "The action failed. Please try again."
+    "sulu_ai.assistant_publish_failed": "The action failed. Please try again.",
+    "sulu_ai.llms_txt_enabled": "Serve llms.txt",
+    "sulu_ai.llms_txt_enabled_info": "Publishes /llms.txt (default language) and /{language}/llms.txt with the published pages for AI assistants and crawlers. Pages hidden from the sitemap or set to noindex are left out.",
+    "sulu_ai.llms_txt_texts": "llms.txt texts",
+    "sulu_ai.llms_txt_texts_info": "One entry per language. Without an entry, the SEO description of the homepage is used as the summary.",
+    "sulu_ai.llms_txt_text": "Language",
+    "sulu_ai.llms_txt_locale": "Language code (e.g. de)",
+    "sulu_ai.llms_txt_summary": "Summary",
+    "sulu_ai.llms_txt_summary_info": "One or two sentences about the website, shown as the quote at the top.",
+    "sulu_ai.llms_txt_notes": "Additional notes",
+    "sulu_ai.llms_txt_notes_info": "Optional Markdown below the summary, e.g. opening hours, contact or what the site is about."
 }

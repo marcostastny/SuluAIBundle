@@ -94,6 +94,47 @@
                 <info_text>sulu_ai.data_query_tables_info</info_text>
             </meta>
         </property>
+        <property name="llmsTxtEnabled" type="checkbox">
+            <meta>
+                <title>sulu_ai.llms_txt_enabled</title>
+                <info_text>sulu_ai.llms_txt_enabled_info</info_text>
+            </meta>
+            <params>
+                <param name="type" value="toggler"/>
+            </params>
+        </property>
+        <property name="llmsTxtTexts" type="block" minOccurs="0" colspan="12">
+            <meta>
+                <title>sulu_ai.llms_txt_texts</title>
+                <info_text>sulu_ai.llms_txt_texts_info</info_text>
+            </meta>
+            <types>
+                <type name="locale">
+                    <meta>
+                        <title>sulu_ai.llms_txt_text</title>
+                    </meta>
+                    <properties>
+                        <property name="locale" type="text_line" mandatory="true" colspan="3">
+                            <meta>
+                                <title>sulu_ai.llms_txt_locale</title>
+                            </meta>
+                        </property>
+                        <property name="summary" type="text_area" colspan="9">
+                            <meta>
+                                <title>sulu_ai.llms_txt_summary</title>
+                                <info_text>sulu_ai.llms_txt_summary_info</info_text>
+                            </meta>
+                        </property>
+                        <property name="notes" type="text_area" colspan="12">
+                            <meta>
+                                <title>sulu_ai.llms_txt_notes</title>
+                                <info_text>sulu_ai.llms_txt_notes_info</info_text>
+                            </meta>
+                        </property>
+                    </properties>
+                </type>
+            </types>
+        </property>
         <property name="imageStylePrompt" type="text_area" colspan="12">
             <meta>
                 <title>sulu_ai.image_style_prompt</title>
